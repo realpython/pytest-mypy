@@ -9,8 +9,7 @@ Mypy static type checker plugin for Pytest
 
 ----
 
-This `Pytest`_ plugin was generated with `Cookiecutter`_ along with `@hackebrot`_'s `Cookiecutter-pytest-plugin`_ template.
-
+This is a work in progress.
 
 Features
 --------
