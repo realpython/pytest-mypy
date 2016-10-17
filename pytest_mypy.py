@@ -49,6 +49,7 @@ class MypyItem(pytest.Item, pytest.File):
             str(self.path),
             # TODO: This is where we'd tack on other mypy options
             #       from the pytest config.
+            #       Or maybe we'll just rely on mypy.ini being present?
         ]
 
         sources, options = mypy.main.process_options(mypy_argv)

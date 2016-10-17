@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='pytest-mypy',
-    version='0.1.0',
+    version='0.1.1',
     author='Daniel Bader',
     author_email='mail@dbader.org',
     maintainer='Daniel Bader',
@@ -23,7 +23,7 @@ setup(
     description='Mypy static type checker plugin for Pytest',
     long_description=read('README.rst'),
     py_modules=['pytest_mypy'],
-    install_requires=['pytest>=2.9.2', 'mypy-lang>=0.4.4'],
+    install_requires=['pytest>=2.9.2', 'mypy-lang>=0.4.5'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Framework :: Pytest',

@@ -9,64 +9,87 @@ Mypy static type checker plugin for Pytest
 
 ----
 
-This is a work in progress.
-
 Features
 --------
 
-* TODO
-
-
-Requirements
-------------
-
-* TODO
+* Runs the mypy static type checker on your source files as part of your Pytest test runs.
+* Does for `mypy`_ what the `pytest-flake8`_ plugin does for `flake8`_.
+* This is a work in progress – pull requests appreciated.
 
 
 Installation
 ------------
 
-You can install "pytest-mypy" via `pip`_ from `PyPI`_::
+You can install "pytest-mypy" via `pip`_ from `PyPI`_:
+
+.. code-block:: bash
 
     $ pip install pytest-mypy
-
-    pyvenv venv
-    source venv/bin/activate
-    python setup.py develop
-    venv/bin/py.test --mypy example_test.py
-
-
 
 Usage
 -----
 
-* TODO
+You can enable pytest-mypy with the ``--mypy`` flag:
+
+.. code-block:: bash
+
+    $ py.test --mypy test_*.py
+
+Mypy supports `reading configuration settings <http://mypy.readthedocs.io/en/latest/config_file.html>`_ from a ``mypy.ini`` file.
+This is currently the only way to configure mypy through pytest-mypy.
+In the future pytest-mypy may offer a passthrough for command line
+options.
 
 Contributing
 ------------
 Contributions are very welcome. Tests can be run with `tox`_, please ensure
 the coverage at least stays the same before you submit a pull request.
 
+Development Environment Setup
+-----------------------------
+Here's how to install pytest-mypy in development mode so you can test your
+changes locally:
+
+.. code-block:: bash
+
+    $ pyvenv venv
+    $ source venv/bin/activate
+    $ python setup.py develop
+    $ venv/bin/py.test --mypy example_test.py
+
+How to publish a new version to PyPI
+------------------------------------
+
+.. code-block:: bash
+
+    $ pip install twine wheel
+    $ python setup.py sdist bdist_wheel
+    $ twine upload dist/*
+
 License
 -------
 
 Distributed under the terms of the `MIT`_ license, "pytest-mypy" is free and open source software
-
 
 Issues
 ------
 
 If you encounter any problems, please `file an issue`_ along with a detailed description.
 
-.. _`Cookiecutter`: https://github.com/audreyr/cookiecutter
-.. _`@hackebrot`: https://github.com/hackebrot
+Meta
+----
+
+Daniel Bader – `@dbader_org`_ – https://dbader.org – mail@dbader.org
+
+https://github.com/dbader/pytest-mypy
+
+
 .. _`MIT`: http://opensource.org/licenses/MIT
-.. _`BSD-3`: http://opensource.org/licenses/BSD-3-Clause
-.. _`GNU GPL v3.0`: http://www.gnu.org/licenses/gpl-3.0.txt
-.. _`Apache Software License 2.0`: http://www.apache.org/licenses/LICENSE-2.0
-.. _`cookiecutter-pytest-plugin`: https://github.com/pytest-dev/cookiecutter-pytest-plugin
 .. _`file an issue`: https://github.com/dbader/pytest-mypy/issues
-.. _`pytest`: https://github.com/pytest-dev/pytest
 .. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`pip`: https://pypi.python.org/pypi/pip/
 .. _`PyPI`: https://pypi.python.org/pypi
+.. _`mypy`: http://mypy-lang.org/
+.. _`pytest-flake8`: https://pypi.python.org/pypi/pytest-flake8
+.. _`flake8`: https://pypi.python.org/pypi/flake8
+.. _`@dbader_org`: https://twitter.com/dbader_org
