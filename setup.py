@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='pytest-mypy',
-    version='0.1.1',
+    version='0.2.0',
     author='Daniel Bader',
     author_email='mail@dbader.org',
     maintainer='Daniel Bader',
