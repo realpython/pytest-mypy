@@ -23,7 +23,7 @@ setup(
     description='Mypy static type checker plugin for Pytest',
     long_description=read('README.rst'),
     py_modules=['pytest_mypy'],
-    install_requires=['pytest>=2.9.2', 'mypy>=0.470'],
+    install_requires=['pytest>=2.9.2', 'mypy>=0.570'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Framework :: Pytest',
