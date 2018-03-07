@@ -5,7 +5,7 @@ TODO:
     [ ] Proper docs
 """
 import pytest
-import mypy.main
+import mypy.api
 
 
 def pytest_addoption(parser):
@@ -36,9 +36,7 @@ class MypyItem(pytest.Item, pytest.File):
 
     def runtest(self):
         """
-        Run mypy on the given file. Because mypy's API is in flux
-        we emulate parts of mypy.main.main() here and leave it to
-        mypy to process it's options, for example.
+        Run mypy on the given file.
         """
         # TODO: This should be hidden behind a debug / verbose flag.
         print('Running mypy on', self.path)
@@ -52,16 +50,9 @@ class MypyItem(pytest.Item, pytest.File):
             #       Or maybe we'll just rely on mypy.ini being present?
         ]
 
-        sources, options = mypy.main.process_options(mypy_argv)
-
-        try:
-            res = mypy.main.type_check_only(sources, None, options)
-            errors = res.errors
-        except mypy.errors.CompileError as e:
-            errors = e.messages
-
-        if errors:
-            raise MypyError('\n'.join(errors))
+        stdout, _, _ = mypy.api.run(args=mypy_argv)
+        if stdout:
+            raise MypyError(stdout)
 
     def repr_failure(self, excinfo):
         """
