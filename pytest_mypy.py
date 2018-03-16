@@ -55,7 +55,7 @@ class MypyItem(pytest.Item, pytest.File):
         sources, options = mypy.main.process_options(mypy_argv)
 
         try:
-            res = mypy.main.type_check_only(sources, None, options, flush_errors=None)
+            res = mypy.main.type_check_only(sources, None, options)
             errors = res.errors
         except mypy.errors.CompileError as e:
             errors = e.messages
