@@ -5,6 +5,10 @@ pytest-mypy
     :target: https://travis-ci.org/dbader/pytest-mypy
     :alt: See Build Status on Travis CI
 
+.. image:: https://img.shields.io/pypi/v/pytest-mypy.svg
+   :target: https://pypi.python.org/pypi/pytest-mypy
+   :alt: See Latest Release on PyPI
+
 Mypy static type checker plugin for Pytest
 
 ----
