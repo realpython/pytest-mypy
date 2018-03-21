@@ -45,6 +45,7 @@ class MypyItem(pytest.Item, pytest.File):
         # own options parsing.
         mypy_argv = [
             str(self.path),
+            '--incremental',
             # TODO: This is where we'd tack on other mypy options
             #       from the pytest config.
             #       Or maybe we'll just rely on mypy.ini being present?
