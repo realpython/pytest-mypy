@@ -13,12 +13,20 @@ def pytest_addoption(parser):
     group.addoption(
         '--mypy', action='store_true',
         help='run mypy on .py files')
+    group.addoption(
+        '--mypy-ignore-missing-imports', action='store_true', 
+        help="suppresses error messages about imports that cannot be resolved ")
 
 
 def pytest_collect_file(path, parent):
     config = parent.config
+    mypy_config = []
+
+    if config.option.mypy_ignore_missing_imports:
+        mypy_config.append("--ignore-missing-imports")
+
     if config.option.mypy and path.ext == '.py':
-        return MypyItem(path, parent)
+        return MypyItem(path, parent, mypy_config)
 
 
 class MypyError(Exception):
@@ -30,9 +38,10 @@ class MypyError(Exception):
 
 
 class MypyItem(pytest.Item, pytest.File):
-    def __init__(self, path, parent):
+    def __init__(self, path, parent, config):
         super().__init__(path, parent)
         self.path = path
+        self.mypy_config = config
 
     def runtest(self):
         """
@@ -41,16 +50,17 @@ class MypyItem(pytest.Item, pytest.File):
         # TODO: This should be hidden behind a debug / verbose flag.
         print('Running mypy on', self.path)
 
+
         # Construct a fake command line argv and let mypy do its
         # own options parsing.
         mypy_argv = [
             str(self.path),
-            # TODO: This is where we'd tack on other mypy options
-            #       from the pytest config.
-            #       Or maybe we'll just rely on mypy.ini being present?
         ]
 
+        mypy_argv += self.mypy_config
+
         stdout, _, _ = mypy.api.run(args=mypy_argv)
+
         if stdout:
             raise MypyError(stdout)
 
