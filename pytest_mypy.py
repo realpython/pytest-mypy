@@ -34,12 +34,14 @@ class MypyItem(pytest.Item, pytest.File):
         super().__init__(path, parent)
         self.path = path
 
+    def reportinfo(self):
+        """Produce a heading for the test report."""
+        return self.fspath, None, ' '.join(['mypy', self.name])
+
     def runtest(self):
         """
         Run mypy on the given file.
         """
-        # TODO: This should be hidden behind a debug / verbose flag.
-        print('Running mypy on', self.path)
 
         # Construct a fake command line argv and let mypy do its
         # own options parsing.
