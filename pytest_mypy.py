@@ -43,18 +43,21 @@ class MypyItem(pytest.Item, pytest.File):
         self.path = path
         self.mypy_config = config
 
+    def reportinfo(self):
+        """Produce a heading for the test report."""
+        return self.fspath, None, ' '.join(['mypy', self.name])
+
     def runtest(self):
         """
         Run mypy on the given file.
         """
-        # TODO: This should be hidden behind a debug / verbose flag.
-        print('Running mypy on', self.path)
 
 
         # Construct a fake command line argv and let mypy do its
         # own options parsing.
         mypy_argv = [
             str(self.path),
+            '--incremental',
         ]
 
         mypy_argv += self.mypy_config
