@@ -25,7 +25,10 @@ def pytest_collect_file(path, parent):
     if config.option.mypy_ignore_missing_imports:
         mypy_config.append("--ignore-missing-imports")
 
-    if config.option.mypy and path.ext == '.py':
+    if path.ext == '.py' and any([
+            config.option.mypy,
+            config.option.mypy_ignore_missing_imports,
+    ]):
         return MypyItem(path, parent, mypy_config)
 
 
