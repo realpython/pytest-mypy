@@ -45,7 +45,8 @@ class MypyItem(pytest.Item, pytest.File):
         super().__init__(path, parent)
         self.path = path
         self.mypy_config = config
-
+        self.add_marker("mypy")
+    
     def reportinfo(self):
         """Produce a heading for the test report."""
         return self.fspath, None, ' '.join(['mypy', self.name])
