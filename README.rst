@@ -44,6 +44,12 @@ This is currently the only way to configure mypy through pytest-mypy.
 In the future pytest-mypy may offer a passthrough for command line
 options.
 
+You can restrict your test run to only perform mypy checks and not any other tests by using the `-m` option:
+
+.. code-block:: bash
+
+    py.test --mypy -m mypy test_*.py
+
 Contributing
 ------------
 Contributions are very welcome. Tests can be run with `tox`_, please ensure
