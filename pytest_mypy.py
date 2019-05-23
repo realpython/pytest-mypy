@@ -32,6 +32,10 @@ def pytest_collect_file(path, parent):
         return MypyItem(path, parent, mypy_config)
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "mypy: mark tests to be checked by mypy.")
+
+
 class MypyError(Exception):
     """
     An error caught by mypy, e.g a type checker violation
