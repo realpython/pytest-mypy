@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import glob
 import os
 import codecs
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def read(fname):
@@ -22,7 +23,12 @@ setup(
     url='https://github.com/dbader/pytest-mypy',
     description='Mypy static type checker plugin for Pytest',
     long_description=read('README.rst'),
-    py_modules=['pytest_mypy'],
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+    py_modules=[
+        os.path.splitext(os.path.basename(path))[0]
+        for path in glob.glob('src/*.py')
+    ],
     install_requires=[
         'pytest>=2.8,<4.7; python_version<"3.5"',
         'pytest>=2.8; python_version>="3.5"',
