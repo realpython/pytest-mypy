@@ -1,9 +1,5 @@
-"""
-TODO:
-    [ ] Make mypy options configurable
-    [ ] Python 2.7 port?
-    [ ] Proper docs
-"""
+"""Mypy static type checker plugin for Pytest"""
+
 import pytest
 import mypy.api
 
