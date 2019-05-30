@@ -14,8 +14,8 @@ def pytest_addoption(parser):
         '--mypy', action='store_true',
         help='run mypy on .py files')
     group.addoption(
-        '--mypy-ignore-missing-imports', action='store_true', 
-        help="suppresses error messages about imports that cannot be resolved ")
+        '--mypy-ignore-missing-imports', action='store_true',
+        help="suppresses error messages about imports that cannot be resolved")
 
 
 def pytest_collect_file(path, parent):
@@ -33,7 +33,10 @@ def pytest_collect_file(path, parent):
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "mypy: mark tests to be checked by mypy.")
+    config.addinivalue_line(
+        "markers",
+        "mypy: mark tests to be checked by mypy.",
+    )
 
 
 class MypyError(Exception):
@@ -50,7 +53,7 @@ class MypyItem(pytest.Item, pytest.File):
         self.path = path
         self.mypy_config = config
         self.add_marker("mypy")
-    
+
     def reportinfo(self):
         """Produce a heading for the test report."""
         return self.fspath, None, ' '.join(['mypy', self.name])
@@ -59,7 +62,6 @@ class MypyItem(pytest.Item, pytest.File):
         """
         Run mypy on the given file.
         """
-
 
         # Construct a fake command line argv and let mypy do its
         # own options parsing.
