@@ -29,16 +29,14 @@ setup(
         os.path.splitext(os.path.basename(path))[0]
         for path in glob.glob('src/*.py')
     ],
-    python_requires='>=3.4',
+    python_requires='>=3.5',
     setup_requires=[
         'setuptools-scm>=3.5',
     ],
     install_requires=[
         'filelock>=3.0',
-        'pytest>=3.5,<4.7; python_version<"3.5"',
-        'pytest>=3.5; python_version>="3.5"',
-        'mypy>=0.500,<0.700; python_version<"3.5"',
-        'mypy>=0.500; python_version>="3.5" and python_version<"3.8"',
+        'pytest>=3.5',
+        'mypy>=0.500; python_version<"3.8"',
         'mypy>=0.700; python_version>="3.8"',
     ],
     classifiers=[
@@ -48,7 +46,6 @@ setup(
         'Topic :: Software Development :: Testing',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

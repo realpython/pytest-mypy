@@ -255,8 +255,7 @@ def test_mypy_indirect(testdir, xdist_args):
     testdir.makepyfile(good='''
         import bad
     ''')
-    xdist_args.append('good.py')  # Nothing may come after xdist_args in py34.
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args, 'good.py')
     assert result.ret != 0
 
 
@@ -283,7 +282,7 @@ def test_mypy_indirect_inject(testdir, xdist_args):
                 plugin.MypyFileItem(py.path.local('good.py'), session),
             )
     ''')
-    testdir.mkdir('empty')
-    xdist_args.append('empty')  # Nothing may come after xdist_args in py34.
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    name = 'empty'
+    testdir.mkdir(name)
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args, name)
     assert result.ret != 0
