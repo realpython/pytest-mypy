@@ -7,7 +7,7 @@ def test_mypy_success(testdir):
             assert myfunc(12)
     ''')
 
-    result = testdir.runpytest('--mypy', '-v')
+    result = testdir.runpytest_subprocess('--mypy', '-v')
 
     assert result.ret == 0
 
@@ -21,7 +21,7 @@ def test_mypy_error(testdir):
             assert myfunc(12)
     ''')
 
-    result = testdir.runpytest('--mypy', '-v')
+    result = testdir.runpytest_subprocess('--mypy', '-v')
 
     result.stdout.fnmatch_lines([
         'test_mypy_error.py:2: error: Incompatible return value*',
