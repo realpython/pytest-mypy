@@ -26,8 +26,8 @@ setup(
     install_requires=[
         'pytest>=2.9,<4.7; python_version<"3.5"',
         'pytest>=2.9; python_version>="3.5"',
-        'mypy>=0.570,<0.650; python_version<"3.5"',
-        'mypy~=0.570; python_version>="3.5"',
+        'mypy>=0.570,<0.700; python_version<"3.5"',
+        'mypy>=0.570; python_version>="3.5"',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
