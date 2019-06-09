@@ -29,6 +29,7 @@ setup(
         os.path.splitext(os.path.basename(path))[0]
         for path in glob.glob('src/*.py')
     ],
+    python_requires='~=3.4',
     install_requires=[
         'pytest>=2.8,<4.7; python_version<"3.5"',
         'pytest>=2.8; python_version>="3.5"',
