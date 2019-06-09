@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name='pytest-mypy',
-    version='0.3.2',
+    version='0.3.3',
     author='Daniel Bader',
     author_email='mail@dbader.org',
     maintainer='David Tucker',
