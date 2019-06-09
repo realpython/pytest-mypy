@@ -24,7 +24,8 @@ setup(
     long_description=read('README.rst'),
     py_modules=['pytest_mypy'],
     install_requires=[
-        'pytest>=2.9.0,<5.0.0',
+        'pytest>=2.9,<4.7; python_version<"3.5"',
+        'pytest>=2.9; python_version>="3.5"',
         'mypy>=0.570,<0.650; python_version<"3.5"',
         'mypy~=0.570; python_version>="3.5"',
     ],
