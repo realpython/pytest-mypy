@@ -4,9 +4,11 @@ def test_mypy_success(testdir):
         def myfunc(x: int) -> int:
             return x * 2
     ''')
-
-    result = testdir.runpytest_subprocess('--mypy', '-v')
-
+    result = testdir.runpytest_subprocess()
+    result.stdout.fnmatch_lines(['* no tests ran *'])
+    assert result.ret != 0
+    result = testdir.runpytest_subprocess('--mypy')
+    result.stdout.fnmatch_lines(['* 1 passed *'])
     assert result.ret == 0
 
 
