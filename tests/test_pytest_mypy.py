@@ -1,4 +1,5 @@
 def test_mypy_success(testdir):
+    """Verify that running on a module with no type errors passes."""
     testdir.makepyfile('''
         def myfunc(x: int) -> int:
             return x * 2
@@ -10,6 +11,7 @@ def test_mypy_success(testdir):
 
 
 def test_mypy_error(testdir):
+    """Verify that running on a module with type errors fails."""
     testdir.makepyfile('''
         def myfunc(x: int) -> str:
             return x * 2
