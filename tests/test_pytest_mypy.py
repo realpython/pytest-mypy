@@ -42,3 +42,17 @@ def test_mypy_ignore_missings_imports(testdir):
     result = testdir.runpytest_subprocess('--mypy-ignore-missing-imports')
     result.stdout.fnmatch_lines(['* 1 passed *'])
     assert result.ret == 0
+
+
+def test_mypy_marker(testdir):
+    """Verify that -m mypy only runs the mypy tests."""
+    testdir.makepyfile('''
+        def test_fails():
+            assert False
+    ''')
+    result = testdir.runpytest_subprocess('--mypy')
+    result.stdout.fnmatch_lines(['* 1 failed, 1 passed *'])
+    assert result.ret != 0
+    result = testdir.runpytest_subprocess('--mypy', '-m', 'mypy')
+    result.stdout.fnmatch_lines(['* 1 passed, 1 deselected *'])
+    assert result.ret == 0
