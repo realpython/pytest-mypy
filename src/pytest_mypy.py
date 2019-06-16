@@ -18,6 +18,21 @@ def pytest_addoption(parser):
         help="suppresses error messages about imports that cannot be resolved")
 
 
+def pytest_configure(config):
+    """
+    Register a custom marker for MypyItems,
+    and configure the plugin based on the CLI.
+    """
+    config.addinivalue_line(
+        'markers',
+        '{marker}: mark tests to be checked by mypy.'.format(
+            marker=MypyItem.MARKER,
+        ),
+    )
+    if config.getoption('--mypy-ignore-missing-imports'):
+        mypy_argv.append('--ignore-missing-imports')
+
+
 def pytest_collect_file(path, parent):
     """Create a MypyItem for every file mypy should run on."""
     if path.ext == '.py' and any([
@@ -67,29 +82,6 @@ def pytest_runtestloop(session):
             terminal.write_line(stderr, red=True)
 
 
-def pytest_configure(config):
-    """
-    Register a custom marker for MypyItems,
-    and configure the plugin based on the CLI.
-    """
-    config.addinivalue_line(
-        'markers',
-        '{marker}: mark tests to be checked by mypy.'.format(
-            marker=MypyItem.MARKER,
-        ),
-    )
-    if config.getoption('--mypy-ignore-missing-imports'):
-        mypy_argv.append('--ignore-missing-imports')
-
-
-class MypyError(Exception):
-    """
-    An error caught by mypy, e.g a type checker violation
-    or a syntax error.
-    """
-    pass
-
-
 class MypyItem(pytest.Item, pytest.File):
 
     """A File that Mypy Runs On."""
@@ -122,3 +114,10 @@ class MypyItem(pytest.Item, pytest.File):
         if excinfo.errisinstance(MypyError):
             return excinfo.value.args[0]
         return super().repr_failure(excinfo)
+
+
+class MypyError(Exception):
+    """
+    An error caught by mypy, e.g a type checker violation
+    or a syntax error.
+    """
