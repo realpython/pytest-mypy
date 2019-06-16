@@ -18,11 +18,10 @@ def test_mypy_error(testdir):
         def myfunc(x: int) -> str:
             return x * 2
     ''')
-
-    result = testdir.runpytest_subprocess('--mypy', '-v')
-
+    result = testdir.runpytest_subprocess('--mypy')
     result.stdout.fnmatch_lines([
         'test_mypy_error.py:2: error: Incompatible return value*',
+        '* 1 failed *',
     ])
     assert result.ret != 0
 
