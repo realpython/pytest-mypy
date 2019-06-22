@@ -57,3 +57,22 @@ def test_mypy_marker(testdir):
     result = testdir.runpytest_subprocess('--mypy', '-m', 'mypy')
     result.stdout.fnmatch_lines(['* 1 passed, 1 deselected *'])
     assert result.ret == 0
+
+
+def test_non_mypy_error(testdir):
+    """Verify that non-MypyError exceptions are passed through the plugin."""
+    message = 'This is not a MypyError.'
+    testdir.makepyfile('''
+        import pytest_mypy
+
+        def _patched_runtest(*args, **kwargs):
+            raise Exception('{message}')
+
+        pytest_mypy.MypyItem.runtest = _patched_runtest
+    '''.format(message=message))
+    result = testdir.runpytest_subprocess()
+    result.assert_outcomes()
+    result = testdir.runpytest_subprocess('--mypy')
+    result.assert_outcomes(failed=1)
+    result.stdout.fnmatch_lines(['*' + message])
+    assert result.ret != 0
