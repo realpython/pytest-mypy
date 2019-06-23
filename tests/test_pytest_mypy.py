@@ -5,10 +5,9 @@ def test_mypy_success(testdir):
             return x * 2
     ''')
     result = testdir.runpytest_subprocess()
-    result.stdout.fnmatch_lines(['* no tests ran *'])
-    assert result.ret != 0
+    result.assert_outcomes()
     result = testdir.runpytest_subprocess('--mypy')
-    result.stdout.fnmatch_lines(['* 1 passed *'])
+    result.assert_outcomes(passed=1)
     assert result.ret == 0
 
 
@@ -18,10 +17,12 @@ def test_mypy_error(testdir):
         def myfunc(x: int) -> str:
             return x * 2
     ''')
+    result = testdir.runpytest_subprocess()
+    result.assert_outcomes()
     result = testdir.runpytest_subprocess('--mypy')
+    result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
         'test_mypy_error.py:2: error: Incompatible return value*',
-        '* 1 failed *',
     ])
     assert result.ret != 0
 
@@ -35,13 +36,13 @@ def test_mypy_ignore_missings_imports(testdir):
         import pytest_mypy
     ''')
     result = testdir.runpytest_subprocess('--mypy')
+    result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
         '*1: error: Cannot find module named*',
-        '* 1 failed *',
     ])
     assert result.ret != 0
     result = testdir.runpytest_subprocess('--mypy-ignore-missing-imports')
-    result.stdout.fnmatch_lines(['* 1 passed *'])
+    result.assert_outcomes(passed=1)
     assert result.ret == 0
 
 
@@ -52,8 +53,27 @@ def test_mypy_marker(testdir):
             assert False
     ''')
     result = testdir.runpytest_subprocess('--mypy')
-    result.stdout.fnmatch_lines(['* 1 failed, 1 passed *'])
+    result.assert_outcomes(failed=1, passed=1)
     assert result.ret != 0
     result = testdir.runpytest_subprocess('--mypy', '-m', 'mypy')
-    result.stdout.fnmatch_lines(['* 1 passed, 1 deselected *'])
+    result.assert_outcomes(passed=1)
     assert result.ret == 0
+
+
+def test_non_mypy_error(testdir):
+    """Verify that non-MypyError exceptions are passed through the plugin."""
+    message = 'This is not a MypyError.'
+    testdir.makepyfile('''
+        import pytest_mypy
+
+        def _patched_runtest(*args, **kwargs):
+            raise Exception('{message}')
+
+        pytest_mypy.MypyItem.runtest = _patched_runtest
+    '''.format(message=message))
+    result = testdir.runpytest_subprocess()
+    result.assert_outcomes()
+    result = testdir.runpytest_subprocess('--mypy')
+    result.assert_outcomes(failed=1)
+    result.stdout.fnmatch_lines(['*' + message])
+    assert result.ret != 0
