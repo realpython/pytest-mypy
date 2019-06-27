@@ -14,11 +14,11 @@ def read(fname):
 
 setup(
     name='pytest-mypy',
-    version='0.3.2',
+    version='0.3.3',
     author='Daniel Bader',
     author_email='mail@dbader.org',
-    maintainer='Daniel Bader',
-    maintainer_email='mail@dbader.org',
+    maintainer='David Tucker',
+    maintainer_email='david@tucker.name',
     license='MIT',
     url='https://github.com/dbader/pytest-mypy',
     description='Mypy static type checker plugin for Pytest',
@@ -29,6 +29,7 @@ setup(
         os.path.splitext(os.path.basename(path))[0]
         for path in glob.glob('src/*.py')
     ],
+    python_requires='~=3.4',
     install_requires=[
         'pytest>=2.8,<4.7; python_version<"3.5"',
         'pytest>=2.8; python_version>="3.5"',
@@ -47,7 +48,6 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
         'Operating System :: OS Independent',
         'License :: OSI Approved :: MIT License',
     ],

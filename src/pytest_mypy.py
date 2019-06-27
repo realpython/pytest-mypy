@@ -1,14 +1,11 @@
-"""
-TODO:
-    [ ] Make mypy options configurable
-    [ ] Python 2.7 port?
-    [ ] Proper docs
-"""
+"""Mypy static type checker plugin for Pytest"""
+
 import pytest
 import mypy.api
 
 
 def pytest_addoption(parser):
+    """Add options for enabling and running mypy."""
     group = parser.getgroup('mypy')
     group.addoption(
         '--mypy', action='store_true',
@@ -19,6 +16,7 @@ def pytest_addoption(parser):
 
 
 def pytest_collect_file(path, parent):
+    """Create a MypyItem for every file mypy should run on."""
     config = parent.config
     mypy_config = []
 
@@ -33,6 +31,7 @@ def pytest_collect_file(path, parent):
 
 
 def pytest_configure(config):
+    """Register a custom marker for MypyItems."""
     config.addinivalue_line(
         "markers",
         "mypy: mark tests to be checked by mypy.",
@@ -48,6 +47,9 @@ class MypyError(Exception):
 
 
 class MypyItem(pytest.Item, pytest.File):
+
+    """A File that Mypy Runs On."""
+
     def __init__(self, path, parent, config):
         super().__init__(path, parent)
         self.path = path
