@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+* Run mypy once per session instead of once per file.
+* Stop passing --incremental (which mypy now defaults to).
+* Support configuring the plugin in a conftest.py.
+
 ## 0.3.3
 * Register `mypy` marker.
 * Add a PEP-518 [build-system]
