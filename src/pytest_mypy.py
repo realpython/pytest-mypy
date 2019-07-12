@@ -102,6 +102,7 @@ class MypyItem(pytest.Item, pytest.File):
         self.mypy_errors = []
 
     def mypy_path(self):
+        """Get the path that is expected to show up in Mypy results."""
         return self.fspath.relto(self.config.rootdir)
 
     def reportinfo(self):
