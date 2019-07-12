@@ -40,9 +40,13 @@ You can enable pytest-mypy with the ``--mypy`` flag:
     $ py.test --mypy test_*.py
 
 Mypy supports `reading configuration settings <http://mypy.readthedocs.io/en/latest/config_file.html>`_ from a ``mypy.ini`` file.
-This is currently the only way to configure mypy through pytest-mypy.
-In the future pytest-mypy may offer a passthrough for command line
-options.
+Alternatively, the plugin can be configured in a ``conftest.py`` to invoke mypy with extra options:
+
+.. code-block:: python
+
+    def pytest_configure(config):
+        plugin = config.pluginmanager.getplugin('mypy')
+        plugin.mypy_argv.append('--check-untyped-defs')
 
 You can restrict your test run to only perform mypy checks and not any other tests by using the `-m` option:
 

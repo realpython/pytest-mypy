@@ -107,3 +107,14 @@ def test_mypy_unmatched_stdout(testdir):
     '''.format(stdout=stdout))
     result = testdir.runpytest_subprocess('--mypy')
     result.stdout.fnmatch_lines([stdout])
+
+
+def test_api_mypy_argv(testdir):
+    """Ensure that the plugin can be configured in a conftest.py."""
+    testdir.makepyfile(conftest='''
+        def pytest_configure(config):
+            plugin = config.pluginmanager.getplugin('mypy')
+            plugin.mypy_argv.append('--version')
+    ''')
+    result = testdir.runpytest_subprocess('--mypy')
+    assert result.ret == 0
