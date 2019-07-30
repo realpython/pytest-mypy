@@ -8,6 +8,7 @@ python:
   - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8-dev"
 
 install: pip install 'tox-travis ~= 0.12.0'
 script: tox
