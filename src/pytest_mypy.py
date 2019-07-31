@@ -10,6 +10,7 @@ import mypy.api
 
 
 mypy_argv = []
+nodeid_name = 'mypy'
 
 
 def pytest_addoption(parser):
@@ -77,7 +78,14 @@ def pytest_collect_file(path, parent):
             parent.config.option.mypy,
             parent.config.option.mypy_ignore_missing_imports,
     ]):
-        return MypyItem(path, parent)
+        item = MypyItem(path, parent)
+        if nodeid_name:
+            item = MypyItem(
+                path,
+                parent,
+                nodeid='::'.join([item.nodeid, nodeid_name]),
+            )
+        return item
     return None
 
 

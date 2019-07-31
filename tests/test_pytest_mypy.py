@@ -145,6 +145,19 @@ def test_api_mypy_argv(testdir, xdist_args):
     assert result.ret == 0
 
 
+def test_api_nodeid_name(testdir, xdist_args):
+    """Ensure that the plugin can be configured in a conftest.py."""
+    nodeid_name = 'UnmistakableNodeIDName'
+    testdir.makepyfile(conftest='''
+        def pytest_configure(config):
+            plugin = config.pluginmanager.getplugin('mypy')
+            plugin.nodeid_name = '{}'
+    '''.format(nodeid_name))
+    result = testdir.runpytest_subprocess('--mypy', '--verbose', *xdist_args)
+    result.stdout.fnmatch_lines(['*conftest.py::' + nodeid_name + '*'])
+    assert result.ret == 0
+
+
 def test_pytest_collection_modifyitems(testdir, xdist_args):
     testdir.makepyfile(conftest='''
         def pytest_collection_modifyitems(session, config, items):
