@@ -89,7 +89,10 @@ class MypyItem(pytest.Item, pytest.File):
     MARKER = 'mypy'
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(MypyItem, self).__init__(*args, **kwargs)
+        if hasattr(self, "_nodeid"):
+            self._nodeid += "::MYPY"
+
         self.add_marker(self.MARKER)
         self.mypy_errors = []
 
