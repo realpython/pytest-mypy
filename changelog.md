@@ -4,6 +4,7 @@
 * Run mypy once per session instead of once per file.
 * Stop passing --incremental (which mypy now defaults to).
 * Support configuring the plugin in a conftest.py.
+* Add support for Python 3.8
 
 ## 0.3.3
 * Register `mypy` marker.

@@ -35,6 +35,7 @@ setup(
         'pytest>=2.8; python_version>="3.5"',
         'mypy>=0.570,<0.700; python_version<"3.5"',
         'mypy>=0.570; python_version>="3.5"',
+        'mypy>=0.701; python_version>="3.8.0b1"',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -47,6 +48,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython',
         'Operating System :: OS Independent',
         'License :: OSI Approved :: MIT License',
