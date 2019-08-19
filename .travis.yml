@@ -1,20 +1,27 @@
-# Config file for automatic testing at travis-ci.org
-
 dist: xenial
 sudo: false
 language: python
 python:
-  - "3.4"
-  - "3.5"
-  - "3.6"
-  - "3.7"
-  - "3.8-dev"
-
+- '3.4'
+- '3.5'
+- '3.6'
+- '3.7'
+- 3.8-dev
 install: pip install 'tox-travis ~= 0.12.0'
 script: tox
-
+deploy:
+  provider: pypi
+  user: dmtucker
+  password:
+    secure: rvVuJw187OTFkNmJrEPK4U9mUX5nR+mqSPcEgqhIMW3XivIqkKdSvlFPq0imOrAT4TmxLGTvDFVT9TykOlTtp8LURmIyF+IhcvCaDaNC/TwN4vwqFPignlAeXK8R6quFfEzPE+Em1zqLsSWwzATxLKFpY9W8YnvrW5ygG/xOxeKl2O4yB3t4EmXIguT/hDMWkWAdHgGSp8Ves/U6nNhi5hb1yOVr6iORPeBK2BzxvxauIesN7GsQW2Yf5RIIrmk9EoclwpFJSWmmQBP2CozujFvC4zBJmAQ5JUbDQ99CSr8kxgMUvhr+Fx19mvqyps1WijCqV+AevHLU/usCko+YZkMlsz0cZYTRVHwU9JWyuLO9HEI4OlMVyf3qY4HQAoTv6AwofLFnYuZ/7Uf7KmvJ0USOjMJXhEkCGhaECw+e131s4cGQLNzbZCt14ICOrUT3uxwgFqYWvOdd+mMqnzcgIw7dYxSC9+JKINeVTryucmsqGVZ8eX0M6WqEf9iktHblrv2CftkYwOK9T0BVi1gLxW3r88+NwZt4l08fjvNa2RbeqMoWKBMmPywuKBwwFjb4vxz2VbaoQqdDdAXlOPVjZMsG8Z73XCquPu/QDJey/5K/iL48bjMRkOFZWzjTWFhG8DbdrEANfa9R25V/VWmpRLTG0lgK/84CdB0eyORbpbE=
+  distributions: sdist bdist_wheel
+  skip_existing: true
+  on:
+    repo: dbader/pytest-mypy
+    tags: true
+    python: '3.4'
 before_cache:
-  - rm -rf $HOME/.cache/pip/log
+- rm -rf $HOME/.cache/pip/log
 cache:
   directories:
-    - $HOME/.cache/pip
+  - "$HOME/.cache/pip"
