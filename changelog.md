@@ -6,6 +6,8 @@
 * Support configuring the plugin in a conftest.py.
 * Add support for Python 3.8
 
+See [the milestone](https://github.com/dbader/pytest-mypy/milestone/6) for details.
+
 ## 0.3.3
 * Register `mypy` marker.
 * Add a PEP-518 [build-system]
