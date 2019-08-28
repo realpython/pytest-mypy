@@ -9,14 +9,14 @@ pytest-mypy
    :target: https://pypi.python.org/pypi/pytest-mypy
    :alt: See Latest Release on PyPI
 
-Mypy static type checker plugin for Pytest
+Mypy static type checker plugin for pytest
 
 ----
 
 Features
 --------
 
-* Runs the mypy static type checker on your source files as part of your Pytest test runs.
+* Runs the mypy static type checker on your source files as part of your pytest test runs.
 * Does for `mypy`_ what the `pytest-flake8`_ plugin does for `flake8`_.
 * This is a work in progress – pull requests appreciated.
 
