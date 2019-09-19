@@ -34,7 +34,7 @@ setup(
         'pytest>=2.8,<4.7; python_version<"3.5"',
         'pytest>=2.8; python_version>="3.5"',
         'mypy>=0.570,<0.700; python_version<"3.5"',
-        'mypy>=0.570; python_version>="3.5"',
+        'mypy>=0.570; python_version>="3.5" and python_version<"3.8.0b1"',
         'mypy>=0.701; python_version>="3.8.0b1"',
     ],
     classifiers=[
