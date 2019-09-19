@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1
+* Stop overlapping `python_version`s in `install_requires`.
+
 ## 0.4.0
 * Run mypy once per session instead of once per file.
 * Stop passing --incremental (which mypy now defaults to).
