@@ -76,7 +76,8 @@ def pytest_runtestloop(session):
             else:
                 item.mypy_errors.append(error)
         if any(unmatched_lines):
-            terminal.write_line('\n'.join(unmatched_lines), red=True)
+            color = {"red": True} if status != 0 else {"green": True}
+            terminal.write_line('\n'.join(unmatched_lines), **color)
 
         if stderr:
             terminal.write_line(stderr, red=True)
