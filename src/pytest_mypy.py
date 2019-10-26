@@ -1,5 +1,7 @@
 """Mypy static type checker plugin for Pytest"""
 
+import os
+
 import pytest
 import mypy.api
 
@@ -83,6 +85,18 @@ def pytest_runtestloop(session):
             terminal.write_line(stderr, red=True)
 
 
+# mypy.errors.remove_path_prefix is not public.
+# https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L647-L654
+def _remove_path_prefix(path, prefix):
+    """If path starts with prefix, return copy of path with the prefix removed.
+    Otherwise, return path. If path is None, return None.
+    """
+    if prefix is not None and path.startswith(prefix):
+        return path[len(prefix):]
+    else:
+        return path
+
+
 class MypyItem(pytest.Item, pytest.File):
 
     """A File that Mypy Runs On."""
@@ -96,7 +110,22 @@ class MypyItem(pytest.Item, pytest.File):
 
     def mypy_path(self):
         """Get the path that is expected to show up in Mypy results."""
-        return self.fspath.relto(self.config.rootdir)
+        # Mypy does not currently expose this computation, so...
+        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/build.py#L214
+        prefix = ignore_prefix = os.getcwd()
+        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L208-L214
+        prefix = os.path.normpath(prefix)
+        # Add separator to the end, if not given.
+        if os.path.basename(prefix) != '':
+            prefix += os.sep
+        ignore_prefix = prefix
+        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L535
+        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L216-L221
+        if '--show-absolute-path' in mypy_argv:
+            return os.path.abspath(str(self.fspath))
+        else:
+            path = os.path.normpath(str(self.fspath))
+            return _remove_path_prefix(path, ignore_prefix)
 
     def reportinfo(self):
         """Produce a heading for the test report."""
