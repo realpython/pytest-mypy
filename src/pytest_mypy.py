@@ -48,7 +48,7 @@ def pytest_collect_file(path, parent):
 def pytest_runtestloop(session):
     """Run mypy on collected MypyItems, then sort the output."""
     mypy_items = {
-        item.mypy_path(): item
+        os.path.abspath(str(item.fspath)): item
         for item in session.items
         if isinstance(item, MypyItem)
     }
@@ -72,7 +72,7 @@ def pytest_runtestloop(session):
                 continue
             mypy_path, _, error = line.partition(':')
             try:
-                item = mypy_items[mypy_path]
+                item = mypy_items[os.path.abspath(mypy_path)]
             except KeyError:
                 unmatched_lines.append(line)
             else:
@@ -83,18 +83,6 @@ def pytest_runtestloop(session):
 
         if stderr:
             terminal.write_line(stderr, red=True)
-
-
-# mypy.errors.remove_path_prefix is not public.
-# https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L647-L654
-def _remove_path_prefix(path, prefix):
-    """If path starts with prefix, return copy of path with the prefix removed.
-    Otherwise, return path. If path is None, return None.
-    """
-    if prefix is not None and path.startswith(prefix):
-        return path[len(prefix):]
-    else:
-        return path
 
 
 class MypyItem(pytest.Item, pytest.File):
@@ -108,33 +96,18 @@ class MypyItem(pytest.Item, pytest.File):
         self.add_marker(self.MARKER)
         self.mypy_errors = []
 
-    def mypy_path(self):
-        """Get the path that is expected to show up in Mypy results."""
-        # Mypy does not currently expose this computation, so...
-        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/build.py#L214
-        prefix = ignore_prefix = os.getcwd()
-        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L208-L214
-        prefix = os.path.normpath(prefix)
-        # Add separator to the end, if not given.
-        if os.path.basename(prefix) != '':
-            prefix += os.sep
-        ignore_prefix = prefix
-        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L535
-        # https://github.com/python/mypy/blob/fdcbb74b2e01f6afd0549da6375a66aab839fd9a/mypy/errors.py#L216-L221
-        if '--show-absolute-path' in mypy_argv:
-            return os.path.abspath(str(self.fspath))
-        else:
-            path = os.path.normpath(str(self.fspath))
-            return _remove_path_prefix(path, ignore_prefix)
-
-    def reportinfo(self):
-        """Produce a heading for the test report."""
-        return self.fspath, None, self.mypy_path()
-
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
         if self.mypy_errors:
             raise MypyError('\n'.join(self.mypy_errors))
+
+    def reportinfo(self):
+        """Produce a heading for the test report."""
+        return (
+            self.fspath,
+            None,
+            self.config.invocation_dir.bestrelpath(self.fspath),
+        )
 
     def repr_failure(self, excinfo):
         """
