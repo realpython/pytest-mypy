@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2
+* Make success message green instead of red.
+* Remove Python 3.8 beta/dev references.
+* Stop blacklisting early 0.5x and 0.7x mypy releases.
+
+See [the milestone](https://github.com/dbader/pytest-mypy/milestone/8) for details.
+
 ## 0.4.1
 * Stop overlapping `python_version`s in `install_requires`.
 
