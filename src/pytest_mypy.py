@@ -1,5 +1,7 @@
 """Mypy static type checker plugin for Pytest"""
 
+import os
+
 import pytest
 import mypy.api
 
@@ -46,7 +48,7 @@ def pytest_collect_file(path, parent):
 def pytest_runtestloop(session):
     """Run mypy on collected MypyItems, then sort the output."""
     mypy_items = {
-        item.mypy_path(): item
+        os.path.abspath(str(item.fspath)): item
         for item in session.items
         if isinstance(item, MypyItem)
     }
@@ -70,7 +72,7 @@ def pytest_runtestloop(session):
                 continue
             mypy_path, _, error = line.partition(':')
             try:
-                item = mypy_items[mypy_path]
+                item = mypy_items[os.path.abspath(mypy_path)]
             except KeyError:
                 unmatched_lines.append(line)
             else:
@@ -94,18 +96,18 @@ class MypyItem(pytest.Item, pytest.File):
         self.add_marker(self.MARKER)
         self.mypy_errors = []
 
-    def mypy_path(self):
-        """Get the path that is expected to show up in Mypy results."""
-        return self.fspath.relto(self.config.rootdir)
-
-    def reportinfo(self):
-        """Produce a heading for the test report."""
-        return self.fspath, None, self.mypy_path()
-
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
         if self.mypy_errors:
             raise MypyError('\n'.join(self.mypy_errors))
+
+    def reportinfo(self):
+        """Produce a heading for the test report."""
+        return (
+            self.fspath,
+            None,
+            self.config.invocation_dir.bestrelpath(self.fspath),
+        )
 
     def repr_failure(self, excinfo):
         """
