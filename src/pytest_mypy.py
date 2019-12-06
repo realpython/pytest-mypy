@@ -83,6 +83,7 @@ def pytest_runtestloop(session):
 
         if stderr:
             terminal.write_line(stderr, red=True)
+    MypyItem.MYPY_RUN_COMPLETE = True
 
 
 class MypyItem(pytest.Item, pytest.File):
@@ -90,6 +91,7 @@ class MypyItem(pytest.Item, pytest.File):
     """A File that Mypy Runs On."""
 
     MARKER = 'mypy'
+    MYPY_RUN_COMPLETE=False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -97,6 +99,14 @@ class MypyItem(pytest.Item, pytest.File):
         self.mypy_errors = []
 
     def runtest(self):
+        if not MypyItem.MYPY_RUN_COMPLETE:
+            stdout, stderr, status = mypy.api.run(
+                mypy_argv + [ str(self.fspath) ],
+            )
+
+            if status != 0:
+                raise MypyError(stdout)
+
         """Raise an exception if mypy found errors for this item."""
         if self.mypy_errors:
             raise MypyError('\n'.join(self.mypy_errors))
