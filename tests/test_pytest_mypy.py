@@ -38,7 +38,7 @@ def test_mypy_ignore_missings_imports(testdir):
     result = testdir.runpytest_subprocess('--mypy')
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
-        '1: error: Cannot find module named*',
+        "1: error: Cannot find *module named 'pytest_mypy'",
     ])
     assert result.ret != 0
     result = testdir.runpytest_subprocess('--mypy-ignore-missing-imports')
