@@ -1,8 +1,21 @@
 import pytest
 
 
+@pytest.fixture(
+    params=[
+        True,  # xdist enabled, active
+        False,  # xdist enabled, inactive
+        None,  # xdist disabled
+    ],
+)
+def xdist_args(request):
+    if request.param is None:
+        return ['-p', 'no:xdist']
+    return ['-n', 'auto'] if request.param else []
+
+
 @pytest.mark.parametrize('test_count', [1, 2])
-def test_mypy_success(testdir, test_count):
+def test_mypy_success(testdir, test_count, xdist_args):
     """Verify that running on a module with no type errors passes."""
     testdir.makepyfile(
         **{
@@ -13,22 +26,22 @@ def test_mypy_success(testdir, test_count):
             for test_i in range(test_count)
         }
     )
-    result = testdir.runpytest_subprocess()
+    result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(passed=test_count)
     assert result.ret == 0
 
 
-def test_mypy_error(testdir):
+def test_mypy_error(testdir, xdist_args):
     """Verify that running on a module with type errors fails."""
     testdir.makepyfile('''
         def myfunc(x: int) -> str:
             return x * 2
     ''')
-    result = testdir.runpytest_subprocess()
+    result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
         '2: error: Incompatible return value*',
@@ -36,7 +49,7 @@ def test_mypy_error(testdir):
     assert result.ret != 0
 
 
-def test_mypy_ignore_missings_imports(testdir):
+def test_mypy_ignore_missings_imports(testdir, xdist_args):
     """
     Verify that --mypy-ignore-missing-imports
     causes mypy to ignore missing imports.
@@ -44,32 +57,35 @@ def test_mypy_ignore_missings_imports(testdir):
     testdir.makepyfile('''
         import pytest_mypy
     ''')
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
         "1: error: Cannot find *module named 'pytest_mypy'",
     ])
     assert result.ret != 0
-    result = testdir.runpytest_subprocess('--mypy-ignore-missing-imports')
+    result = testdir.runpytest_subprocess(
+        '--mypy-ignore-missing-imports',
+        *xdist_args
+    )
     result.assert_outcomes(passed=1)
     assert result.ret == 0
 
 
-def test_mypy_marker(testdir):
+def test_mypy_marker(testdir, xdist_args):
     """Verify that -m mypy only runs the mypy tests."""
     testdir.makepyfile('''
         def test_fails():
             assert False
     ''')
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(failed=1, passed=1)
     assert result.ret != 0
-    result = testdir.runpytest_subprocess('--mypy', '-m', 'mypy')
+    result = testdir.runpytest_subprocess('--mypy', '-m', 'mypy', *xdist_args)
     result.assert_outcomes(passed=1)
     assert result.ret == 0
 
 
-def test_non_mypy_error(testdir):
+def test_non_mypy_error(testdir, xdist_args):
     """Verify that non-MypyError exceptions are passed through the plugin."""
     message = 'This is not a MypyError.'
     testdir.makepyfile('''
@@ -80,15 +96,15 @@ def test_non_mypy_error(testdir):
 
         pytest_mypy.MypyItem.runtest = _patched_runtest
     '''.format(message=message))
-    result = testdir.runpytest_subprocess()
+    result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines(['*' + message])
     assert result.ret != 0
 
 
-def test_mypy_stderr(testdir):
+def test_mypy_stderr(testdir, xdist_args):
     """Verify that stderr from mypy is printed."""
     stderr = 'This is stderr from mypy.'
     testdir.makepyfile(conftest='''
@@ -99,11 +115,11 @@ def test_mypy_stderr(testdir):
 
         mypy.api.run = _patched_run
     '''.format(stderr=stderr))
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.stdout.fnmatch_lines([stderr])
 
 
-def test_mypy_unmatched_stdout(testdir):
+def test_mypy_unmatched_stdout(testdir, xdist_args):
     """Verify that unexpected output on stdout from mypy is printed."""
     stdout = 'This is unexpected output on stdout from mypy.'
     testdir.makepyfile(conftest='''
@@ -114,16 +130,16 @@ def test_mypy_unmatched_stdout(testdir):
 
         mypy.api.run = _patched_run
     '''.format(stdout=stdout))
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.stdout.fnmatch_lines([stdout])
 
 
-def test_api_mypy_argv(testdir):
+def test_api_mypy_argv(testdir, xdist_args):
     """Ensure that the plugin can be configured in a conftest.py."""
     testdir.makepyfile(conftest='''
         def pytest_configure(config):
             plugin = config.pluginmanager.getplugin('mypy')
             plugin.mypy_argv.append('--version')
     ''')
-    result = testdir.runpytest_subprocess('--mypy')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     assert result.ret == 0
