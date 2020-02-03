@@ -1,13 +1,22 @@
-def test_mypy_success(testdir):
+import pytest
+
+
+@pytest.mark.parametrize('test_count', [1, 2])
+def test_mypy_success(testdir, test_count):
     """Verify that running on a module with no type errors passes."""
-    testdir.makepyfile('''
-        def myfunc(x: int) -> int:
-            return x * 2
-    ''')
+    testdir.makepyfile(
+        **{
+            'test_' + str(test_i): '''
+                def myfunc(x: int) -> int:
+                    return x * 2
+            '''
+            for test_i in range(test_count)
+        }
+    )
     result = testdir.runpytest_subprocess()
     result.assert_outcomes()
     result = testdir.runpytest_subprocess('--mypy')
-    result.assert_outcomes(passed=1)
+    result.assert_outcomes(passed=test_count)
     assert result.ret == 0
 
 
