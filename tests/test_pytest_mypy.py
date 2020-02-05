@@ -143,3 +143,26 @@ def test_api_mypy_argv(testdir, xdist_args):
     ''')
     result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     assert result.ret == 0
+
+
+def test_pytest_collection_modifyitems(testdir, xdist_args):
+    testdir.makepyfile(conftest='''
+        def pytest_collection_modifyitems(session, config, items):
+            plugin = config.pluginmanager.getplugin('mypy')
+            for mypy_item_i in reversed([
+                    i
+                    for i, item in enumerate(items)
+                    if isinstance(item, plugin.MypyItem)
+            ]):
+                items.pop(mypy_item_i)
+    ''')
+    testdir.makepyfile('''
+        def myfunc(x: int) -> str:
+            return x * 2
+
+        def test_pass():
+            pass
+    ''')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    result.assert_outcomes(passed=1)
+    assert result.ret == 0
