@@ -4,9 +4,9 @@ import json
 import os
 from tempfile import NamedTemporaryFile
 
-from filelock import FileLock
-import pytest
+from filelock import FileLock  # type: ignore
 import mypy.api
+import pytest  # type: ignore
 
 
 mypy_argv = []

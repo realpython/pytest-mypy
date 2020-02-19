@@ -8,6 +8,11 @@ python:
 - '3.8'
 install: pip install 'tox-travis ~= 0.12.0'
 script: tox
+jobs:
+  include:
+  - name: Static Analysis
+    python: '3.8'
+    script: tox -e static
 deploy:
   provider: pypi
   user: __token__
