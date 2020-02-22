@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+* Remove MypyItem.mypy_path
+* Add support for pytest-xdist
+* Add a configurable name to MypyItem node IDs
+
+See [the milestone](https://github.com/dbader/pytest-mypy/milestone/9) for details.
+
 ## 0.4.2
 * Make success message green instead of red.
 * Remove Python 3.8 beta/dev references.
