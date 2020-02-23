@@ -1,8 +1,0 @@
-include LICENSE
-include pyproject.toml
-include README.rst
-
-graft src
-
-recursive-exclude * __pycache__
-recursive-exclude * *.py[co]

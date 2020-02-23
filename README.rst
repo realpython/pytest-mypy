@@ -1,17 +1,11 @@
 pytest-mypy
 ===================================
 
-.. image:: https://travis-ci.org/dbader/pytest-mypy.svg?branch=master
-    :target: https://travis-ci.org/dbader/pytest-mypy
-    :alt: See Build Status on Travis CI
-
-.. image:: https://img.shields.io/pypi/v/pytest-mypy.svg
-   :target: https://pypi.python.org/pypi/pytest-mypy
-   :alt: See Latest Release on PyPI
-
 Mypy static type checker plugin for pytest
 
-----
+.. image:: https://img.shields.io/pypi/v/pytest-mypy.svg
+   :target: https://pypi.org/project/pytest-mypy/
+   :alt: See Latest Release on PyPI
 
 Features
 --------
@@ -54,32 +48,6 @@ You can restrict your test run to only perform mypy checks and not any other tes
 
     py.test --mypy -m mypy test_*.py
 
-Contributing
-------------
-Contributions are very welcome. Tests can be run with `tox`_, please ensure
-the coverage at least stays the same before you submit a pull request.
-
-Development Environment Setup
------------------------------
-Here's how to install pytest-mypy in development mode so you can test your
-changes locally:
-
-.. code-block:: bash
-
-    $ pyvenv venv
-    $ source venv/bin/activate
-    $ python setup.py develop
-    $ venv/bin/py.test --mypy example_test.py
-
-How to publish a new version to PyPI
-------------------------------------
-
-.. code-block:: bash
-
-    $ pip install twine wheel
-    $ python setup.py sdist bdist_wheel
-    $ twine upload dist/*
-
 License
 -------
 
@@ -100,7 +68,6 @@ https://github.com/dbader/pytest-mypy
 
 .. _`MIT`: http://opensource.org/licenses/MIT
 .. _`file an issue`: https://github.com/dbader/pytest-mypy/issues
-.. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`pip`: https://pypi.python.org/pypi/pip/
 .. _`PyPI`: https://pypi.python.org/pypi
 .. _`mypy`: http://mypy-lang.org/

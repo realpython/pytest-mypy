@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name='pytest-mypy',
-    version='0.4.2',
+    use_scm_version=True,
     author='Daniel Bader',
     author_email='mail@dbader.org',
     maintainer='David Tucker',
@@ -30,6 +30,9 @@ setup(
         for path in glob.glob('src/*.py')
     ],
     python_requires='~=3.4',
+    setup_requires=[
+        'setuptools-scm>=3.5',
+    ],
     install_requires=[
         'filelock>=3.0',
         'pytest>=3.5,<4.7; python_version<"3.5"',
