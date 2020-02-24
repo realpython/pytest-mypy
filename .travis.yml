@@ -23,7 +23,7 @@ deploy:
   on:
     repo: dbader/pytest-mypy
     tags: true
-    python: '3.4'
+    python: '3.8'
 before_cache:
 - rm -rf $HOME/.cache/pip/log
 cache:
