@@ -98,11 +98,11 @@ def test_non_mypy_error(testdir, xdist_args):
         def pytest_configure(config):
             plugin = config.pluginmanager.getplugin('mypy')
 
-            class PatchedMypyItem(plugin.MypyItem):
+            class PatchedMypyFileItem(plugin.MypyFileItem):
                 def runtest(self):
                     raise Exception('{message}')
 
-            plugin.MypyItem = PatchedMypyItem
+            plugin.MypyFileItem = PatchedMypyFileItem
     '''.format(message=message))
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
@@ -178,7 +178,7 @@ def test_pytest_collection_modifyitems(testdir, xdist_args):
             for mypy_item_i in reversed([
                     i
                     for i, item in enumerate(items)
-                    if isinstance(item, plugin.MypyItem)
+                    if isinstance(item, plugin.MypyFileItem)
             ]):
                 items.pop(mypy_item_i)
     ''')

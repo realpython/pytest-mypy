@@ -73,14 +73,14 @@ def pytest_configure(config):
 
 
 def pytest_collect_file(path, parent):
-    """Create a MypyItem for every file mypy should run on."""
+    """Create a MypyFileItem for every file mypy should run on."""
     if path.ext == '.py' and any([
             parent.config.option.mypy,
             parent.config.option.mypy_ignore_missing_imports,
     ]):
-        item = MypyItem(path, parent)
+        item = MypyFileItem(path, parent)
         if nodeid_name:
-            item = MypyItem(
+            item = MypyFileItem(
                 path,
                 parent,
                 nodeid='::'.join([item.nodeid, nodeid_name]),
@@ -89,15 +89,29 @@ def pytest_collect_file(path, parent):
     return None
 
 
-class MypyItem(pytest.Item, pytest.File):
+class MypyItem(pytest.Item):
 
-    """A File that Mypy Runs On."""
+    """A Mypy-related test Item."""
 
     MARKER = 'mypy'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
+
+    def repr_failure(self, excinfo):
+        """
+        Unwrap mypy errors so we get a clean error message without the
+        full exception repr.
+        """
+        if excinfo.errisinstance(MypyError):
+            return excinfo.value.args[0]
+        return super().repr_failure(excinfo)
+
+
+class MypyFileItem(MypyItem, pytest.File):
+
+    """A File that Mypy Runs On."""
 
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
@@ -112,7 +126,7 @@ class MypyItem(pytest.Item, pytest.File):
                     abspaths=[
                         os.path.abspath(str(item.fspath))
                         for item in self.session.items
-                        if isinstance(item, MypyItem)
+                        if isinstance(item, MypyFileItem)
                     ],
                 )
         )
@@ -128,15 +142,6 @@ class MypyItem(pytest.Item, pytest.File):
             None,
             self.config.invocation_dir.bestrelpath(self.fspath),
         )
-
-    def repr_failure(self, excinfo):
-        """
-        Unwrap mypy errors so we get a clean error message without the
-        full exception repr.
-        """
-        if excinfo.errisinstance(MypyError):
-            return excinfo.value.args[0]
-        return super().repr_failure(excinfo)
 
 
 def _cached_json_results(results_path, results_factory=None):
