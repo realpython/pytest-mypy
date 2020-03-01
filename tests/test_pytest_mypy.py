@@ -54,13 +54,19 @@ def test_mypy_ignore_missings_imports(testdir, xdist_args):
     Verify that --mypy-ignore-missing-imports
     causes mypy to ignore missing imports.
     """
+    module_name = 'is_always_missing'
     testdir.makepyfile('''
-        import pytest_mypy
-    ''')
+        try:
+            import {module_name}
+        except ImportError:
+            pass
+    '''.format(module_name=module_name))
     result = testdir.runpytest_subprocess('--mypy', *xdist_args)
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines([
-        "1: error: Cannot find *module named 'pytest_mypy'",
+        "2: error: Cannot find *module named '{module_name}'".format(
+            module_name=module_name,
+        ),
     ])
     assert result.ret != 0
     result = testdir.runpytest_subprocess(
@@ -88,13 +94,15 @@ def test_mypy_marker(testdir, xdist_args):
 def test_non_mypy_error(testdir, xdist_args):
     """Verify that non-MypyError exceptions are passed through the plugin."""
     message = 'This is not a MypyError.'
-    testdir.makepyfile('''
-        import pytest_mypy
+    testdir.makepyfile(conftest='''
+        def pytest_configure(config):
+            plugin = config.pluginmanager.getplugin('mypy')
 
-        def _patched_runtest(*args, **kwargs):
-            raise Exception('{message}')
+            class PatchedMypyItem(plugin.MypyItem):
+                def runtest(self):
+                    raise Exception('{message}')
 
-        pytest_mypy.MypyItem.runtest = _patched_runtest
+            plugin.MypyItem = PatchedMypyItem
     '''.format(message=message))
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
