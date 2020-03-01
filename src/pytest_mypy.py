@@ -90,6 +90,24 @@ def pytest_collect_file(path, parent):
     return None
 
 
+@pytest.hookimpl(hookwrapper=True, trylast=True)
+def pytest_collection_modifyitems(session, config, items):
+    """
+    Add a MypyStatusItem if any MypyFileItems were collected.
+
+    Since mypy might check files that were not collected,
+    pytest could pass even though mypy failed!
+    To prevent that, add an explicit check for the mypy exit status.
+
+    This should execute as late as possible to avoid missing any
+    MypyFileItems injected by other pytest_collection_modifyitems
+    implementations.
+    """
+    yield
+    if any(isinstance(item, MypyFileItem) for item in items):
+        items.append(MypyStatusItem(nodeid_name, session, config, session))
+
+
 class MypyItem(pytest.Item):
 
     """A Mypy-related test Item."""
@@ -129,6 +147,21 @@ class MypyFileItem(MypyItem, pytest.File):
             None,
             self.config.invocation_dir.bestrelpath(self.fspath),
         )
+
+
+class MypyStatusItem(MypyItem):
+
+    """A check for a non-zero mypy exit status."""
+
+    def runtest(self):
+        """Raise a MypyError if mypy exited with a non-zero status."""
+        results = _mypy_results(self.session)
+        if results['status']:
+            raise MypyError(
+                'mypy exited with status {status}.'.format(
+                    status=results['status'],
+                ),
+            )
 
 
 def _mypy_results(session):
