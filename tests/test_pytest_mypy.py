@@ -14,29 +14,29 @@ def xdist_args(request):
     return ['-n', 'auto'] if request.param else []
 
 
-@pytest.mark.parametrize('test_count', [1, 2])
-def test_mypy_success(testdir, test_count, xdist_args):
+@pytest.mark.parametrize('pyfile_count', [1, 2])
+def test_mypy_success(testdir, pyfile_count, xdist_args):
     """Verify that running on a module with no type errors passes."""
     testdir.makepyfile(
         **{
-            'test_' + str(test_i): '''
-                def myfunc(x: int) -> int:
+            'pyfile_' + str(pyfile_i): '''
+                def pyfunc(x: int) -> int:
                     return x * 2
             '''
-            for test_i in range(test_count)
+            for pyfile_i in range(pyfile_count)
         }
     )
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
     result = testdir.runpytest_subprocess('--mypy', *xdist_args)
-    result.assert_outcomes(passed=test_count)
+    result.assert_outcomes(passed=pyfile_count)
     assert result.ret == 0
 
 
 def test_mypy_error(testdir, xdist_args):
     """Verify that running on a module with type errors fails."""
     testdir.makepyfile('''
-        def myfunc(x: int) -> str:
+        def pyfunc(x: int) -> str:
             return x * 2
     ''')
     result = testdir.runpytest_subprocess(*xdist_args)
@@ -178,7 +178,7 @@ def test_pytest_collection_modifyitems(testdir, xdist_args):
                 items.pop(mypy_item_i)
     ''')
     testdir.makepyfile('''
-        def myfunc(x: int) -> str:
+        def pyfunc(x: int) -> str:
             return x * 2
 
         def test_pass():
