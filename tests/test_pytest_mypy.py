@@ -167,6 +167,11 @@ def test_api_nodeid_name(testdir, xdist_args):
 
 
 def test_pytest_collection_modifyitems(testdir, xdist_args):
+    """
+    Verify that collected files which are removed in a
+    pytest_collection_modifyitems implementation are not
+    checked by mypy.
+    """
     testdir.makepyfile(conftest='''
         def pytest_collection_modifyitems(session, config, items):
             plugin = config.pluginmanager.getplugin('mypy')
