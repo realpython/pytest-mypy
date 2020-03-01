@@ -1,5 +1,6 @@
 """Mypy static type checker plugin for Pytest"""
 
+import functools
 import json
 import os
 from tempfile import NamedTemporaryFile
@@ -115,21 +116,7 @@ class MypyFileItem(MypyItem, pytest.File):
 
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
-        results = _cached_json_results(
-            results_path=(
-                self.config._mypy_results_path
-                if _is_master(self.config) else
-                self.config.slaveinput['_mypy_results_path']
-            ),
-            results_factory=lambda:
-                _mypy_results_factory(
-                    abspaths=[
-                        os.path.abspath(str(item.fspath))
-                        for item in self.session.items
-                        if isinstance(item, MypyFileItem)
-                    ],
-                )
-        )
+        results = _mypy_results(self.session)
         abspath = os.path.abspath(str(self.fspath))
         errors = results['abspath_errors'].get(abspath)
         if errors:
@@ -142,6 +129,25 @@ class MypyFileItem(MypyItem, pytest.File):
             None,
             self.config.invocation_dir.bestrelpath(self.fspath),
         )
+
+
+def _mypy_results(session):
+    """Get the cached mypy results for the session, or generate them."""
+    return _cached_json_results(
+        results_path=(
+            session.config._mypy_results_path
+            if _is_master(session.config) else
+            session.config.slaveinput['_mypy_results_path']
+        ),
+        results_factory=functools.partial(
+            _mypy_results_factory,
+            abspaths=[
+                os.path.abspath(str(item.fspath))
+                for item in session.items
+                if isinstance(item, MypyFileItem)
+            ],
+        )
+    )
 
 
 def _cached_json_results(results_path, results_factory=None):
