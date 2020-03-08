@@ -1,5 +1,6 @@
 """Mypy static type checker plugin for Pytest"""
 
+import functools
 import json
 import os
 from tempfile import NamedTemporaryFile
@@ -73,14 +74,14 @@ def pytest_configure(config):
 
 
 def pytest_collect_file(path, parent):
-    """Create a MypyItem for every file mypy should run on."""
+    """Create a MypyFileItem for every file mypy should run on."""
     if path.ext == '.py' and any([
             parent.config.option.mypy,
             parent.config.option.mypy_ignore_missing_imports,
     ]):
-        item = MypyItem(path, parent)
+        item = MypyFileItem(path, parent)
         if nodeid_name:
-            item = MypyItem(
+            item = MypyFileItem(
                 path,
                 parent,
                 nodeid='::'.join([item.nodeid, nodeid_name]),
@@ -89,9 +90,27 @@ def pytest_collect_file(path, parent):
     return None
 
 
-class MypyItem(pytest.Item, pytest.File):
+@pytest.hookimpl(hookwrapper=True, trylast=True)
+def pytest_collection_modifyitems(session, config, items):
+    """
+    Add a MypyStatusItem if any MypyFileItems were collected.
 
-    """A File that Mypy Runs On."""
+    Since mypy might check files that were not collected,
+    pytest could pass even though mypy failed!
+    To prevent that, add an explicit check for the mypy exit status.
+
+    This should execute as late as possible to avoid missing any
+    MypyFileItems injected by other pytest_collection_modifyitems
+    implementations.
+    """
+    yield
+    if any(isinstance(item, MypyFileItem) for item in items):
+        items.append(MypyStatusItem(nodeid_name, session, config, session))
+
+
+class MypyItem(pytest.Item):
+
+    """A Mypy-related test Item."""
 
     MARKER = 'mypy'
 
@@ -99,23 +118,23 @@ class MypyItem(pytest.Item, pytest.File):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
 
+    def repr_failure(self, excinfo):
+        """
+        Unwrap mypy errors so we get a clean error message without the
+        full exception repr.
+        """
+        if excinfo.errisinstance(MypyError):
+            return excinfo.value.args[0]
+        return super().repr_failure(excinfo)
+
+
+class MypyFileItem(MypyItem, pytest.File):
+
+    """A File that Mypy Runs On."""
+
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
-        results = _cached_json_results(
-            results_path=(
-                self.config._mypy_results_path
-                if _is_master(self.config) else
-                self.config.slaveinput['_mypy_results_path']
-            ),
-            results_factory=lambda:
-                _mypy_results_factory(
-                    abspaths=[
-                        os.path.abspath(str(item.fspath))
-                        for item in self.session.items
-                        if isinstance(item, MypyItem)
-                    ],
-                )
-        )
+        results = _mypy_results(self.session)
         abspath = os.path.abspath(str(self.fspath))
         errors = results['abspath_errors'].get(abspath)
         if errors:
@@ -129,14 +148,39 @@ class MypyItem(pytest.Item, pytest.File):
             self.config.invocation_dir.bestrelpath(self.fspath),
         )
 
-    def repr_failure(self, excinfo):
-        """
-        Unwrap mypy errors so we get a clean error message without the
-        full exception repr.
-        """
-        if excinfo.errisinstance(MypyError):
-            return excinfo.value.args[0]
-        return super().repr_failure(excinfo)
+
+class MypyStatusItem(MypyItem):
+
+    """A check for a non-zero mypy exit status."""
+
+    def runtest(self):
+        """Raise a MypyError if mypy exited with a non-zero status."""
+        results = _mypy_results(self.session)
+        if results['status']:
+            raise MypyError(
+                'mypy exited with status {status}.'.format(
+                    status=results['status'],
+                ),
+            )
+
+
+def _mypy_results(session):
+    """Get the cached mypy results for the session, or generate them."""
+    return _cached_json_results(
+        results_path=(
+            session.config._mypy_results_path
+            if _is_master(session.config) else
+            session.config.slaveinput['_mypy_results_path']
+        ),
+        results_factory=functools.partial(
+            _mypy_results_factory,
+            abspaths=[
+                os.path.abspath(str(item.fspath))
+                for item in session.items
+                if isinstance(item, MypyFileItem)
+            ],
+        )
+    )
 
 
 def _cached_json_results(results_path, results_factory=None):
