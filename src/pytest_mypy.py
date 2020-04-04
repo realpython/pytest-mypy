@@ -79,15 +79,23 @@ def pytest_collect_file(path, parent):
             parent.config.option.mypy,
             parent.config.option.mypy_ignore_missing_imports,
     ]):
-        item = MypyFileItem(path, parent)
-        if nodeid_name:
-            item = MypyFileItem(
-                path,
-                parent,
-                nodeid='::'.join([item.nodeid, nodeid_name]),
-            )
-        return item
+        return MypyFile.from_parent(parent=parent, fspath=path)
     return None
+
+
+class MypyFile(pytest.File):
+
+    """A File that Mypy will run on."""
+
+    @classmethod
+    def from_parent(cls, *args, **kwargs):
+        """Override from_parent for compatibility."""
+        # pytest.File.from_parent did not exist before pytest 5.4.
+        return getattr(super(), 'from_parent', cls)(*args, **kwargs)
+
+    def collect(self):
+        """Create a MypyFileItem for the File."""
+        yield MypyFileItem.from_parent(parent=self, name=nodeid_name)
 
 
 @pytest.hookimpl(hookwrapper=True, trylast=True)
@@ -105,7 +113,9 @@ def pytest_collection_modifyitems(session, config, items):
     """
     yield
     if any(isinstance(item, MypyFileItem) for item in items):
-        items.append(MypyStatusItem(nodeid_name, session, config, session))
+        items.append(
+            MypyStatusItem.from_parent(parent=session, name=nodeid_name),
+        )
 
 
 class MypyItem(pytest.Item):
@@ -118,6 +128,12 @@ class MypyItem(pytest.Item):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
 
+    @classmethod
+    def from_parent(cls, *args, **kwargs):
+        """Override from_parent for compatibility."""
+        # pytest.Item.from_parent did not exist before pytest 5.4.
+        return getattr(super(), 'from_parent', cls)(*args, **kwargs)
+
     def repr_failure(self, excinfo):
         """
         Unwrap mypy errors so we get a clean error message without the
@@ -128,9 +144,9 @@ class MypyItem(pytest.Item):
         return super().repr_failure(excinfo)
 
 
-class MypyFileItem(MypyItem, pytest.File):
+class MypyFileItem(MypyItem):
 
-    """A File that Mypy Runs On."""
+    """A check for Mypy errors in a File."""
 
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
