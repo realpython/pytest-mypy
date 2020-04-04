@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.1](https://github.com/dbader/pytest-mypy/milestone/11)
+* Fix a PytestDeprecationWarning emitted by pytest>=5.4
+
 ## [0.6.0](https://github.com/dbader/pytest-mypy/milestone/10)
 * Inject a test that checks the mypy exit status
 
