@@ -86,9 +86,7 @@ def pytest_collect_file(path, parent):
         # .pyi file with the same name already exists;
         # pytest will complain about duplicate modules otherwise
         path_pyi = str(path) + 'i'  # i.e. a .pyi instead of a .py file
-        if os.path.isfile(path_pyi):
-            return None
-        else:
+        if not os.path.isfile(path_pyi):
             return MypyFile.from_parent(parent=parent, fspath=path)
     return None
 
