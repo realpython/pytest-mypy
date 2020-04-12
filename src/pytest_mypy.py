@@ -79,14 +79,10 @@ def pytest_collect_file(path, parent):
             parent.config.option.mypy,
             parent.config.option.mypy_ignore_missing_imports,
     ]):
-        if path.ext == '.pyi':
-            return MypyFile.from_parent(parent=parent, fspath=path)
-
         # Do not create MypyFile instance for a .py file if a
         # .pyi file with the same name already exists;
         # pytest will complain about duplicate modules otherwise
-        path_pyi = str(path) + 'i'  # i.e. a .pyi instead of a .py file
-        if not os.path.isfile(path_pyi):
+        if path.ext == '.pyi' or not path.new(ext='.pyi').isfile():
             return MypyFile.from_parent(parent=parent, fspath=path)
     return None
 
