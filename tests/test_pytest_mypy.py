@@ -36,6 +36,36 @@ def test_mypy_success(testdir, pyfile_count, xdist_args):
     assert result.ret == 0
 
 
+def test_mypy_pyi(testdir, xdist_args):
+    """
+    Verify that a .py file will be skipped if
+    a .pyi file exists with the same filename.
+    """
+    # The incorrect signature below should be ignored
+    # as the .pyi file takes priority
+    testdir.makefile(
+        '.py', pyfile='''
+            def pyfunc(x: int) -> str:
+                return x * 2
+        '''
+    )
+
+    testdir.makefile(
+        '.pyi', pyfile='''
+            def pyfunc(x: int) -> int: ...
+        '''
+    )
+
+    result = testdir.runpytest_subprocess(*xdist_args)
+    result.assert_outcomes()
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(passed=mypy_checks)
+    assert result.ret == 0
+
+
 def test_mypy_error(testdir, xdist_args):
     """Verify that running on a module with type errors fails."""
     testdir.makepyfile('''
