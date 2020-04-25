@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.2](https://github.com/dbader/pytest-mypy/milestone/12)
+* Stop ignoring `.pyi` files.
+
 ## [0.6.1](https://github.com/dbader/pytest-mypy/milestone/11)
 * Fix a PytestDeprecationWarning emitted by pytest>=5.4
 
