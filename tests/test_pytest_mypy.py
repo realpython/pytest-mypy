@@ -214,38 +214,6 @@ def test_api_nodeid_name(testdir, xdist_args):
     assert result.ret == 0
 
 
-def test_pytest_collection_modifyitems(testdir, xdist_args):
-    """
-    Verify that collected files which are removed in a
-    pytest_collection_modifyitems implementation are not
-    checked by mypy.
-
-    This would also fail if a MypyStatusItem were injected
-    despite there being no MypyFileItems.
-    """
-    testdir.makepyfile(conftest='''
-        def pytest_collection_modifyitems(session, config, items):
-            plugin = config.pluginmanager.getplugin('mypy')
-            for mypy_item_i in reversed([
-                    i
-                    for i, item in enumerate(items)
-                    if isinstance(item, plugin.MypyFileItem)
-            ]):
-                items.pop(mypy_item_i)
-    ''')
-    testdir.makepyfile('''
-        def pyfunc(x: int) -> str:
-            return x * 2
-
-        def test_pass():
-            pass
-    ''')
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
-    test_count = 1
-    result.assert_outcomes(passed=test_count)
-    assert result.ret == 0
-
-
 def test_mypy_indirect(testdir, xdist_args):
     """Verify that uncollected files checked by mypy cause a failure."""
     testdir.makepyfile(bad='''
@@ -256,38 +224,6 @@ def test_mypy_indirect(testdir, xdist_args):
         import bad
     ''')
     result = testdir.runpytest_subprocess('--mypy', *xdist_args, 'good.py')
-    assert result.ret != 0
-
-
-def test_mypy_indirect_inject(testdir, xdist_args):
-    """
-    Verify that uncollected files checked by mypy because of a MypyFileItem
-    injected in pytest_collection_modifyitems cause a failure.
-    """
-    testdir.makepyfile(bad='''
-        def pyfunc(x: int) -> str:
-            return x * 2
-    ''')
-    testdir.makepyfile(good='''
-        import bad
-    ''')
-    testdir.makepyfile(conftest='''
-        import py
-        import pytest
-
-        @pytest.hookimpl(trylast=True)  # Inject as late as possible.
-        def pytest_collection_modifyitems(session, config, items):
-            plugin = config.pluginmanager.getplugin('mypy')
-            items.append(
-                plugin.MypyFileItem.from_parent(
-                    parent=session,
-                    name=str(py.path.local('good.py')),
-                ),
-            )
-    ''')
-    name = 'empty'
-    testdir.mkdir(name)
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args, name)
     assert result.ret != 0
 
 

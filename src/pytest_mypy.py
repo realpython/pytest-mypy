@@ -125,26 +125,16 @@ class MypyFile(pytest.File):
     def collect(self):
         """Create a MypyFileItem for the File."""
         yield MypyFileItem.from_parent(parent=self, name=nodeid_name)
-
-
-@pytest.hookimpl(hookwrapper=True, trylast=True)
-def pytest_collection_modifyitems(session, config, items):
-    """
-    Add a MypyStatusItem if any MypyFileItems were collected.
-
-    Since mypy might check files that were not collected,
-    pytest could pass even though mypy failed!
-    To prevent that, add an explicit check for the mypy exit status.
-
-    This should execute as late as possible to avoid missing any
-    MypyFileItems injected by other pytest_collection_modifyitems
-    implementations.
-    """
-    yield
-    if any(isinstance(item, MypyFileItem) for item in items):
-        items.append(
-            MypyStatusItem.from_parent(parent=session, name=nodeid_name),
-        )
+        # Since mypy might check files that were not collected,
+        # pytest could pass even though mypy failed!
+        # To prevent that, add an explicit check for the mypy exit status.
+        if not any(
+                isinstance(item, MypyStatusItem) for item in self.session.items
+        ):
+            yield MypyStatusItem.from_parent(
+                parent=self,
+                name=nodeid_name + "-status",
+            )
 
 
 class MypyItem(pytest.Item):
