@@ -29,7 +29,7 @@ setup(
         os.path.splitext(os.path.basename(path))[0]
         for path in glob.glob('src/*.py')
     ],
-    python_requires='~=3.4',
+    python_requires='>=3.4',
     setup_requires=[
         'setuptools-scm>=3.5',
     ],
