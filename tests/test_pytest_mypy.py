@@ -286,3 +286,30 @@ def test_mypy_indirect_inject(testdir, xdist_args):
     testdir.mkdir(name)
     result = testdir.runpytest_subprocess('--mypy', *xdist_args, name)
     assert result.ret != 0
+
+
+def test_api_error_formatter(testdir, xdist_args):
+    """Ensure that the plugin can be configured in a conftest.py."""
+    testdir.makepyfile(bad='''
+        def pyfunc(x: int) -> str:
+            return x * 2
+    ''')
+    testdir.makepyfile(conftest='''
+        def custom_file_error_formatter(item, results, errors):
+            return '\\n'.join(
+                '{path}:{error}'.format(
+                    path=item.fspath,
+                    error=error,
+                )
+                for error in errors
+            )
+
+        def pytest_configure(config):
+            plugin = config.pluginmanager.getplugin('mypy')
+            plugin.file_error_formatter = custom_file_error_formatter
+    ''')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    result.stdout.fnmatch_lines([
+        '*/bad.py:2: error: Incompatible return value*',
+    ])
+    assert result.ret != 0
