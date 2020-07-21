@@ -1,18 +1,8 @@
 dist: xenial
 language: python
-python:
-- '3.4'
-- '3.5'
-- '3.6'
-- '3.7'
-- '3.8'
-install: pip install 'tox-travis ~= 0.12.0'
-script: tox
-jobs:
-  include:
-  - name: Static Analysis
-    python: '3.8'
-    script: tox -e static
+python: '3.8'
+install: pip install tox
+script: tox -e publish
 deploy:
   provider: pypi
   user: __token__
@@ -24,8 +14,3 @@ deploy:
     repo: dbader/pytest-mypy
     tags: true
     python: '3.8'
-before_cache:
-- rm -rf $HOME/.cache/pip/log
-cache:
-  directories:
-  - "$HOME/.cache/pip"
