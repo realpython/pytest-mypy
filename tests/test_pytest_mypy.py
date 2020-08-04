@@ -279,7 +279,10 @@ def test_mypy_indirect_inject(testdir, xdist_args):
         def pytest_collection_modifyitems(session, config, items):
             plugin = config.pluginmanager.getplugin('mypy')
             items.append(
-                plugin.MypyFileItem(py.path.local('good.py'), session),
+                plugin.MypyFileItem.from_parent(
+                    parent=session,
+                    name=str(py.path.local('good.py')),
+                ),
             )
     ''')
     name = 'empty'
