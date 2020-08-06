@@ -10,7 +10,7 @@ import warnings
 import attr
 from filelock import FileLock  # type: ignore
 import mypy.api
-import pytest  # type: ignore
+import pytest
 
 
 PYTEST_MAJOR_VERSION = int(pytest.__version__.partition(".")[0])
@@ -141,12 +141,6 @@ if PYTEST_MAJOR_VERSION < 7:  # pragma: no cover
 class MypyFile(pytest.File):
     """A File that Mypy will run on."""
 
-    @classmethod
-    def from_parent(cls, *args, **kwargs):
-        """Override from_parent for compatibility."""
-        # pytest.File.from_parent did not exist before pytest 5.4.
-        return getattr(super(), "from_parent", cls)(*args, **kwargs)
-
     def collect(self):
         """Create a MypyFileItem for the File."""
         yield MypyFileItem.from_parent(parent=self, name=nodeid_name)
@@ -168,19 +162,6 @@ class MypyItem(pytest.Item):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
-
-    def collect(self):
-        """
-        Partially work around https://github.com/pytest-dev/pytest/issues/8016
-        for pytest < 6.0 with --looponfail.
-        """
-        yield self
-
-    @classmethod
-    def from_parent(cls, *args, **kwargs):
-        """Override from_parent for compatibility."""
-        # pytest.Item.from_parent did not exist before pytest 5.4.
-        return getattr(super(), "from_parent", cls)(*args, **kwargs)
 
     def repr_failure(self, excinfo):
         """
@@ -213,7 +194,7 @@ class MypyFileItem(MypyItem):
         return (
             self.fspath,
             None,
-            self.config.invocation_dir.bestrelpath(self.fspath),
+            str(Path(str(self.fspath)).relative_to(self.config.invocation_params.dir)),
         )
 
 

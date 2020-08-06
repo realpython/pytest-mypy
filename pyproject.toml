@@ -33,7 +33,7 @@ dependencies = [
     "attrs>=19.0",
     "filelock>=3.0",
     "mypy>=1.0",
-    "pytest>=5.0",
+    "pytest>=6.0",
 ]
 
 [project.entry-points.pytest11]

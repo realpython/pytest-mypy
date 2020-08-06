@@ -540,30 +540,6 @@ def test_looponfail(testdir, module_name):
     child.kill(signal.SIGTERM)
 
 
-def test_mypy_item_collect(testdir, xdist_args):
-    """Ensure coverage for a 3.10<=pytest<6.0 workaround."""
-    testdir.makepyfile(
-        """
-        def test_mypy_item_collect(request):
-            plugin = request.config.pluginmanager.getplugin("mypy")
-            mypy_items = [
-                item
-                for item in request.session.items
-                if isinstance(item, plugin.MypyItem)
-            ]
-            assert mypy_items
-            for mypy_item in mypy_items:
-                assert all(item is mypy_item for item in mypy_item.collect())
-        """,
-    )
-    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    test_count = 1
-    mypy_file_checks = 1
-    mypy_status_check = 1
-    result.assert_outcomes(passed=test_count + mypy_file_checks + mypy_status_check)
-    assert result.ret == pytest.ExitCode.OK
-
-
 def test_mypy_results_from_mypy_with_opts():
     """MypyResults.from_mypy respects passed options."""
     mypy_results = pytest_mypy.MypyResults.from_mypy([], opts=["--version"])
