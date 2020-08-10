@@ -14,6 +14,14 @@ mypy_argv = []
 nodeid_name = 'mypy'
 
 
+def default_file_error_formatter(item, results, errors):
+    """Create a string to be displayed when mypy finds errors in a file."""
+    return '\n'.join(errors)
+
+
+file_error_formatter = default_file_error_formatter
+
+
 def pytest_addoption(parser):
     """Add options for enabling and running mypy."""
     group = parser.getgroup('mypy')
@@ -158,7 +166,7 @@ class MypyFileItem(MypyItem):
         abspath = os.path.abspath(str(self.fspath))
         errors = results['abspath_errors'].get(abspath)
         if errors:
-            raise MypyError('\n'.join(errors))
+            raise MypyError(file_error_formatter(self, results, errors))
 
     def reportinfo(self):
         """Produce a heading for the test report."""
