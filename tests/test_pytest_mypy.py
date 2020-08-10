@@ -316,3 +316,20 @@ def test_api_error_formatter(testdir, xdist_args):
         '*/bad.py:2: error: Incompatible return value*',
     ])
     assert result.ret != 0
+
+
+def test_setup_cfg(testdir, xdist_args):
+    """Ensure that the plugin allows configuration with setup.cfg."""
+    testdir.makefile('.cfg', setup='''
+        [mypy]
+        disallow_untyped_defs = True
+    ''')
+    testdir.makepyfile(conftest='''
+        def pyfunc(x):
+            return x * 2
+    ''')
+    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
+    result.stdout.fnmatch_lines([
+        '1: error: Function is missing a type annotation',
+    ])
+    assert result.ret != 0
