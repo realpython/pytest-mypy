@@ -1,10 +1,11 @@
 """Mypy static type checker plugin for Pytest"""
 
-import functools
 import json
 import os
 from tempfile import NamedTemporaryFile
+from typing import Dict, List, Optional, TextIO
 
+import attr
 from filelock import FileLock  # type: ignore
 import mypy.api
 import pytest  # type: ignore
@@ -178,9 +179,9 @@ class MypyFileItem(MypyItem):
 
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
-        results = _mypy_results(self.session)
+        results = MypyResults.from_session(self.session)
         abspath = os.path.abspath(str(self.fspath))
-        errors = results['abspath_errors'].get(abspath)
+        errors = results.abspath_errors.get(abspath)
         if errors:
             raise MypyError(file_error_formatter(self, results, errors))
 
@@ -199,76 +200,96 @@ class MypyStatusItem(MypyItem):
 
     def runtest(self):
         """Raise a MypyError if mypy exited with a non-zero status."""
-        results = _mypy_results(self.session)
-        if results['status']:
+        results = MypyResults.from_session(self.session)
+        if results.status:
             raise MypyError(
                 'mypy exited with status {status}.'.format(
-                    status=results['status'],
+                    status=results.status,
                 ),
             )
 
 
-def _mypy_results(session):
-    """Get the cached mypy results for the session, or generate them."""
-    return _cached_json_results(
-        results_path=(
+@attr.s(frozen=True, kw_only=True)
+class MypyResults:
+
+    """Parsed results from Mypy."""
+
+    _abspath_errors_type = Dict[str, List[str]]
+
+    opts = attr.ib(type=List[str])
+    stdout = attr.ib(type=str)
+    stderr = attr.ib(type=str)
+    status = attr.ib(type=int)
+    abspath_errors = attr.ib(type=_abspath_errors_type)
+    unmatched_stdout = attr.ib(type=str)
+
+    def dump(self, results_f: TextIO) -> None:
+        """Cache results in a format that can be parsed by load()."""
+        return json.dump(vars(self), results_f)
+
+    @classmethod
+    def load(cls, results_f: TextIO) -> 'MypyResults':
+        """Get results cached by dump()."""
+        return cls(**json.load(results_f))
+
+    @classmethod
+    def from_mypy(
+            cls,
+            items: List[MypyFileItem],
+            *,
+            opts: Optional[List[str]] = None
+    ) -> 'MypyResults':
+        """Generate results from mypy."""
+
+        if opts is None:
+            opts = mypy_argv[:]
+        abspath_errors = {
+            os.path.abspath(str(item.fspath)): []
+            for item in items
+        }  # type: MypyResults._abspath_errors_type
+
+        stdout, stderr, status = mypy.api.run(opts + list(abspath_errors))
+
+        unmatched_lines = []
+        for line in stdout.split('\n'):
+            if not line:
+                continue
+            path, _, error = line.partition(':')
+            abspath = os.path.abspath(path)
+            try:
+                abspath_errors[abspath].append(error)
+            except KeyError:
+                unmatched_lines.append(line)
+
+        return cls(
+            opts=opts,
+            stdout=stdout,
+            stderr=stderr,
+            status=status,
+            abspath_errors=abspath_errors,
+            unmatched_stdout='\n'.join(unmatched_lines),
+        )
+
+    @classmethod
+    def from_session(cls, session) -> 'MypyResults':
+        """Load (or generate) cached mypy results for a pytest session."""
+        results_path = (
             session.config._mypy_results_path
             if _is_master(session.config) else
             _get_xdist_workerinput(session.config)['_mypy_results_path']
-        ),
-        results_factory=functools.partial(
-            _mypy_results_factory,
-            abspaths=[
-                os.path.abspath(str(item.fspath))
-                for item in session.items
-                if isinstance(item, MypyFileItem)
-            ],
         )
-    )
-
-
-def _cached_json_results(results_path, results_factory=None):
-    """
-    Read results from results_path if it exists;
-    otherwise, produce them with results_factory,
-    and write them to results_path.
-    """
-    with FileLock(results_path + '.lock'):
-        try:
-            with open(results_path, mode='r') as results_f:
-                results = json.load(results_f)
-        except FileNotFoundError:
-            if not results_factory:
-                raise
-            results = results_factory()
-            with open(results_path, mode='w') as results_f:
-                json.dump(results, results_f)
-    return results
-
-
-def _mypy_results_factory(abspaths):
-    """Run mypy on abspaths and return the results as a JSON-able dict."""
-
-    stdout, stderr, status = mypy.api.run(mypy_argv + abspaths)
-
-    abspath_errors, unmatched_lines = {}, []
-    for line in stdout.split('\n'):
-        if not line:
-            continue
-        path, _, error = line.partition(':')
-        abspath = os.path.abspath(path)
-        if abspath in abspaths:
-            abspath_errors[abspath] = abspath_errors.get(abspath, []) + [error]
-        else:
-            unmatched_lines.append(line)
-
-    return {
-        'stdout': stdout,
-        'stderr': stderr,
-        'status': status,
-        'abspath_errors': abspath_errors,
-        'unmatched_stdout': '\n'.join(unmatched_lines),
-    }
+        with FileLock(results_path + '.lock'):
+            try:
+                with open(results_path, mode='r') as results_f:
+                    results = cls.load(results_f)
+            except FileNotFoundError:
+                results = cls.from_mypy([
+                    item for item in session.items
+                    if isinstance(item, MypyFileItem)
+                ])
+                with open(results_path, mode='w') as results_f:
+                    results.dump(results_f)
+        return results
 
 
 class MypyError(Exception):
@@ -282,15 +303,16 @@ def pytest_terminal_summary(terminalreporter):
     """Report stderr and unrecognized lines from stdout."""
     config = _pytest_terminal_summary_config
     try:
-        results = _cached_json_results(config._mypy_results_path)
+        with open(config._mypy_results_path, mode='r') as results_f:
+            results = MypyResults.load(results_f)
     except FileNotFoundError:
         # No MypyItems executed.
         return
-    if results['unmatched_stdout'] or results['stderr']:
+    if results.unmatched_stdout or results.stderr:
         terminalreporter.section('mypy')
-        if results['unmatched_stdout']:
-            color = {'red': True} if results['status'] else {'green': True}
-            terminalreporter.write_line(results['unmatched_stdout'], **color)
-        if results['stderr']:
-            terminalreporter.write_line(results['stderr'], yellow=True)
+        if results.unmatched_stdout:
+            color = {'red': True} if results.status else {'green': True}
+            terminalreporter.write_line(results.unmatched_stdout, **color)
+        if results.stderr:
+            terminalreporter.write_line(results.stderr, yellow=True)
     os.remove(config._mypy_results_path)

@@ -35,6 +35,7 @@ setup(
         'setuptools-scm>=3.5',
     ],
     install_requires=[
+        'attrs>=19.0',
         'filelock>=3.0',
         'pytest>=3.5',
         'mypy>=0.500; python_version<"3.8"',
