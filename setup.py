@@ -23,6 +23,7 @@ setup(
     url='https://github.com/dbader/pytest-mypy',
     description='Mypy static type checker plugin for Pytest',
     long_description=read('README.rst'),
+    long_description_content_type='text/x-rst',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[
