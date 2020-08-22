@@ -33,12 +33,28 @@ def pytest_addoption(parser):
         help="suppresses error messages about imports that cannot be resolved")
 
 
+XDIST_WORKERINPUT_ATTRIBUTE_NAMES = (
+    'workerinput',
+    # xdist < 2.0.0:
+    'slaveinput',
+)
+
+
+def _get_xdist_workerinput(config_node):
+    workerinput = None
+    for attr_name in XDIST_WORKERINPUT_ATTRIBUTE_NAMES:
+        workerinput = getattr(config_node, attr_name, None)
+        if workerinput is not None:
+            break
+    return workerinput
+
+
 def _is_master(config):
     """
     True if the code running the given pytest.config object is running in
     an xdist master node or not running xdist at all.
     """
-    return not hasattr(config, 'slaveinput')
+    return _get_xdist_workerinput(config) is None
 
 
 def pytest_configure(config):
@@ -58,12 +74,12 @@ def pytest_configure(config):
             config._mypy_results_path = tmp_f.name
 
         # If xdist is enabled, then the results path should be exposed to
-        # the slaves so that they know where to read parsed results from.
+        # the workers so that they know where to read parsed results from.
         if config.pluginmanager.getplugin('xdist'):
             class _MypyXdistPlugin:
                 def pytest_configure_node(self, node):  # xdist hook
                     """Pass config._mypy_results_path to workers."""
-                    node.slaveinput['_mypy_results_path'] = \
+                    _get_xdist_workerinput(node)['_mypy_results_path'] = \
                         node.config._mypy_results_path
             config.pluginmanager.register(_MypyXdistPlugin())
 
@@ -198,7 +214,7 @@ def _mypy_results(session):
         results_path=(
             session.config._mypy_results_path
             if _is_master(session.config) else
-            session.config.slaveinput['_mypy_results_path']
+            _get_xdist_workerinput(session.config)['_mypy_results_path']
         ),
         results_factory=functools.partial(
             _mypy_results_factory,
