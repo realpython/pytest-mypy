@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0](https://github.com/dbader/pytest-mypy/milestone/13)
+* Remove the upper bound on `python_requires`.
+* Require Python 3.5 or greater.
+* Enable custom error formatting.
+* Fix compatibility with pytest-xdist 2.
+
 ## [0.6.2](https://github.com/dbader/pytest-mypy/milestone/12)
 * Stop ignoring `.pyi` files.
 
