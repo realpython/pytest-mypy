@@ -26,7 +26,4 @@ To publish manually:
 
 .. code-block:: bash
 
-    python -m venv venv
-    venv/bin/pip install pep517 twine
-    venv/bin/python -m pep517.build .
-    venv/bin/twine upload dist/*
+    tox -e publish -- upload
