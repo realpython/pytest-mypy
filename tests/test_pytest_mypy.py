@@ -1,3 +1,6 @@
+import signal
+import textwrap
+
 import pytest
 
 
@@ -269,3 +272,87 @@ def test_setup_cfg(testdir, xdist_args):
         '1: error: Function is missing a type annotation',
     ])
     assert result.ret != 0
+
+
+def test_looponfail(testdir):
+    """Ensure that the plugin works with --looponfail."""
+
+    pass_source = textwrap.dedent(
+        """\
+        def pyfunc(x: int) -> int:
+            return x * 2
+        """,
+    )
+    fail_source = textwrap.dedent(
+        """\
+        def pyfunc(x: int) -> str:
+            return x * 2
+        """,
+    )
+    pyfile = testdir.makepyfile(fail_source)
+    looponfailroot = testdir.mkdir("looponfailroot")
+    looponfailroot_pyfile = looponfailroot.join(pyfile.basename)
+    pyfile.move(looponfailroot_pyfile)
+    pyfile = looponfailroot_pyfile
+    testdir.makeini(
+        textwrap.dedent(
+            """\
+            [pytest]
+            looponfailroots = {looponfailroots}
+            """.format(
+                looponfailroots=looponfailroot,
+            ),
+        ),
+    )
+
+    child = testdir.spawn_pytest(
+        "--mypy --looponfail " + str(pyfile),
+        expect_timeout=30.0,
+    )
+
+    def _expect_session():
+        child.expect("==== test session starts ====")
+
+    def _expect_failure():
+        _expect_session()
+        child.expect("==== FAILURES ====")
+        child.expect(pyfile.basename + " ____")
+        child.expect("2: error: Incompatible return value")
+        # These only show with mypy>=0.730:
+        # child.expect("==== mypy ====")
+        # child.expect("Found 1 error in 1 file (checked 1 source file)")
+        child.expect("2 failed")
+        child.expect("#### LOOPONFAILING ####")
+        _expect_waiting()
+
+    def _expect_waiting():
+        child.expect("#### waiting for changes ####")
+        child.expect("Watching")
+
+    def _fix():
+        pyfile.write(pass_source)
+        _expect_changed()
+        _expect_success()
+
+    def _expect_changed():
+        child.expect("MODIFIED " + str(pyfile))
+
+    def _expect_success():
+        for _ in range(2):
+            _expect_session()
+            # These only show with mypy>=0.730:
+            # child.expect("==== mypy ====")
+            # child.expect("Success: no issues found in 1 source file")
+            child.expect("2 passed")
+        _expect_waiting()
+
+    def _break():
+        pyfile.write(fail_source)
+        _expect_changed()
+        _expect_failure()
+
+    _expect_failure()
+    _fix()
+    _break()
+    _fix()
+    child.kill(signal.SIGTERM)
