@@ -39,7 +39,8 @@ setup(
         'filelock>=3.0',
         'pytest>=3.5',
         'mypy>=0.500; python_version<"3.8"',
-        'mypy>=0.700; python_version>="3.8"',
+        'mypy>=0.700; python_version>="3.8" and python_version<"3.9"',
+        'mypy>=0.780; python_version>="3.9"',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -52,6 +53,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: Implementation :: CPython',
         'Operating System :: OS Independent',
         'License :: OSI Approved :: MIT License',
