@@ -4,7 +4,7 @@
 import glob
 import os
 import codecs
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages  # type: ignore
 
 
 def read(fname):
