@@ -1,3 +1,6 @@
+import signal
+import textwrap
+
 import pytest
 
 
@@ -214,38 +217,6 @@ def test_api_nodeid_name(testdir, xdist_args):
     assert result.ret == 0
 
 
-def test_pytest_collection_modifyitems(testdir, xdist_args):
-    """
-    Verify that collected files which are removed in a
-    pytest_collection_modifyitems implementation are not
-    checked by mypy.
-
-    This would also fail if a MypyStatusItem were injected
-    despite there being no MypyFileItems.
-    """
-    testdir.makepyfile(conftest='''
-        def pytest_collection_modifyitems(session, config, items):
-            plugin = config.pluginmanager.getplugin('mypy')
-            for mypy_item_i in reversed([
-                    i
-                    for i, item in enumerate(items)
-                    if isinstance(item, plugin.MypyFileItem)
-            ]):
-                items.pop(mypy_item_i)
-    ''')
-    testdir.makepyfile('''
-        def pyfunc(x: int) -> str:
-            return x * 2
-
-        def test_pass():
-            pass
-    ''')
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args)
-    test_count = 1
-    result.assert_outcomes(passed=test_count)
-    assert result.ret == 0
-
-
 def test_mypy_indirect(testdir, xdist_args):
     """Verify that uncollected files checked by mypy cause a failure."""
     testdir.makepyfile(bad='''
@@ -256,38 +227,6 @@ def test_mypy_indirect(testdir, xdist_args):
         import bad
     ''')
     result = testdir.runpytest_subprocess('--mypy', *xdist_args, 'good.py')
-    assert result.ret != 0
-
-
-def test_mypy_indirect_inject(testdir, xdist_args):
-    """
-    Verify that uncollected files checked by mypy because of a MypyFileItem
-    injected in pytest_collection_modifyitems cause a failure.
-    """
-    testdir.makepyfile(bad='''
-        def pyfunc(x: int) -> str:
-            return x * 2
-    ''')
-    testdir.makepyfile(good='''
-        import bad
-    ''')
-    testdir.makepyfile(conftest='''
-        import py
-        import pytest
-
-        @pytest.hookimpl(trylast=True)  # Inject as late as possible.
-        def pytest_collection_modifyitems(session, config, items):
-            plugin = config.pluginmanager.getplugin('mypy')
-            items.append(
-                plugin.MypyFileItem.from_parent(
-                    parent=session,
-                    name=str(py.path.local('good.py')),
-                ),
-            )
-    ''')
-    name = 'empty'
-    testdir.mkdir(name)
-    result = testdir.runpytest_subprocess('--mypy', *xdist_args, name)
     assert result.ret != 0
 
 
@@ -333,3 +272,87 @@ def test_setup_cfg(testdir, xdist_args):
         '1: error: Function is missing a type annotation',
     ])
     assert result.ret != 0
+
+
+def test_looponfail(testdir):
+    """Ensure that the plugin works with --looponfail."""
+
+    pass_source = textwrap.dedent(
+        """\
+        def pyfunc(x: int) -> int:
+            return x * 2
+        """,
+    )
+    fail_source = textwrap.dedent(
+        """\
+        def pyfunc(x: int) -> str:
+            return x * 2
+        """,
+    )
+    pyfile = testdir.makepyfile(fail_source)
+    looponfailroot = testdir.mkdir("looponfailroot")
+    looponfailroot_pyfile = looponfailroot.join(pyfile.basename)
+    pyfile.move(looponfailroot_pyfile)
+    pyfile = looponfailroot_pyfile
+    testdir.makeini(
+        textwrap.dedent(
+            """\
+            [pytest]
+            looponfailroots = {looponfailroots}
+            """.format(
+                looponfailroots=looponfailroot,
+            ),
+        ),
+    )
+
+    child = testdir.spawn_pytest(
+        "--mypy --looponfail " + str(pyfile),
+        expect_timeout=30.0,
+    )
+
+    def _expect_session():
+        child.expect("==== test session starts ====")
+
+    def _expect_failure():
+        _expect_session()
+        child.expect("==== FAILURES ====")
+        child.expect(pyfile.basename + " ____")
+        child.expect("2: error: Incompatible return value")
+        # These only show with mypy>=0.730:
+        # child.expect("==== mypy ====")
+        # child.expect("Found 1 error in 1 file (checked 1 source file)")
+        child.expect("2 failed")
+        child.expect("#### LOOPONFAILING ####")
+        _expect_waiting()
+
+    def _expect_waiting():
+        child.expect("#### waiting for changes ####")
+        child.expect("Watching")
+
+    def _fix():
+        pyfile.write(pass_source)
+        _expect_changed()
+        _expect_success()
+
+    def _expect_changed():
+        child.expect("MODIFIED " + str(pyfile))
+
+    def _expect_success():
+        for _ in range(2):
+            _expect_session()
+            # These only show with mypy>=0.730:
+            # child.expect("==== mypy ====")
+            # child.expect("Success: no issues found in 1 source file")
+            child.expect("2 passed")
+        _expect_waiting()
+
+    def _break():
+        pyfile.write(fail_source)
+        _expect_changed()
+        _expect_failure()
+
+    _expect_failure()
+    _fix()
+    _break()
+    _fix()
+    child.kill(signal.SIGTERM)
