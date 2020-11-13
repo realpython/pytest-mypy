@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.0](https://github.com/dbader/pytest-mypy/milestone/15)
+* Add support for Python 3.9.
+* Stop injecting `MypyStatusItem` in `pytest_collection_modifyitems` to fix `--looponfail`.
+
 ## [0.7.0](https://github.com/dbader/pytest-mypy/milestone/13)
 * Remove the upper bound on `python_requires`.
 * Require Python 3.5 or greater.
