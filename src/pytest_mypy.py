@@ -12,12 +12,12 @@ import pytest  # type: ignore
 
 
 mypy_argv = []
-nodeid_name = 'mypy'
+nodeid_name = "mypy"
 
 
 def default_file_error_formatter(item, results, errors):
     """Create a string to be displayed when mypy finds errors in a file."""
-    return '\n'.join(errors)
+    return "\n".join(errors)
 
 
 file_error_formatter = default_file_error_formatter
@@ -25,19 +25,19 @@ file_error_formatter = default_file_error_formatter
 
 def pytest_addoption(parser):
     """Add options for enabling and running mypy."""
-    group = parser.getgroup('mypy')
+    group = parser.getgroup("mypy")
+    group.addoption("--mypy", action="store_true", help="run mypy on .py files")
     group.addoption(
-        '--mypy', action='store_true',
-        help='run mypy on .py files')
-    group.addoption(
-        '--mypy-ignore-missing-imports', action='store_true',
-        help="suppresses error messages about imports that cannot be resolved")
+        "--mypy-ignore-missing-imports",
+        action="store_true",
+        help="suppresses error messages about imports that cannot be resolved",
+    )
 
 
 XDIST_WORKERINPUT_ATTRIBUTE_NAMES = (
-    'workerinput',
+    "workerinput",
     # xdist < 2.0.0:
-    'slaveinput',
+    "slaveinput",
 )
 
 
@@ -76,12 +76,15 @@ def pytest_configure(config):
 
         # If xdist is enabled, then the results path should be exposed to
         # the workers so that they know where to read parsed results from.
-        if config.pluginmanager.getplugin('xdist'):
+        if config.pluginmanager.getplugin("xdist"):
+
             class _MypyXdistPlugin:
                 def pytest_configure_node(self, node):  # xdist hook
                     """Pass config._mypy_results_path to workers."""
-                    _get_xdist_workerinput(node)['_mypy_results_path'] = \
-                        node.config._mypy_results_path
+                    _get_xdist_workerinput(node)[
+                        "_mypy_results_path"
+                    ] = node.config._mypy_results_path
+
             config.pluginmanager.register(_MypyXdistPlugin())
 
     # pytest_terminal_summary cannot accept config before pytest 4.2.
@@ -89,25 +92,22 @@ def pytest_configure(config):
     _pytest_terminal_summary_config = config
 
     config.addinivalue_line(
-        'markers',
-        '{marker}: mark tests to be checked by mypy.'.format(
-            marker=MypyItem.MARKER,
-        ),
+        "markers",
+        "{marker}: mark tests to be checked by mypy.".format(marker=MypyItem.MARKER),
     )
-    if config.getoption('--mypy-ignore-missing-imports'):
-        mypy_argv.append('--ignore-missing-imports')
+    if config.getoption("--mypy-ignore-missing-imports"):
+        mypy_argv.append("--ignore-missing-imports")
 
 
 def pytest_collect_file(path, parent):
     """Create a MypyFileItem for every file mypy should run on."""
-    if path.ext in {'.py', '.pyi'} and any([
-            parent.config.option.mypy,
-            parent.config.option.mypy_ignore_missing_imports,
-    ]):
+    if path.ext in {".py", ".pyi"} and any(
+        [parent.config.option.mypy, parent.config.option.mypy_ignore_missing_imports],
+    ):
         # Do not create MypyFile instance for a .py file if a
         # .pyi file with the same name already exists;
         # pytest will complain about duplicate modules otherwise
-        if path.ext == '.pyi' or not path.new(ext='.pyi').isfile():
+        if path.ext == ".pyi" or not path.new(ext=".pyi").isfile():
             return MypyFile.from_parent(parent=parent, fspath=path)
     return None
 
@@ -120,7 +120,7 @@ class MypyFile(pytest.File):
     def from_parent(cls, *args, **kwargs):
         """Override from_parent for compatibility."""
         # pytest.File.from_parent did not exist before pytest 5.4.
-        return getattr(super(), 'from_parent', cls)(*args, **kwargs)
+        return getattr(super(), "from_parent", cls)(*args, **kwargs)
 
     def collect(self):
         """Create a MypyFileItem for the File."""
@@ -128,9 +128,7 @@ class MypyFile(pytest.File):
         # Since mypy might check files that were not collected,
         # pytest could pass even though mypy failed!
         # To prevent that, add an explicit check for the mypy exit status.
-        if not any(
-                isinstance(item, MypyStatusItem) for item in self.session.items
-        ):
+        if not any(isinstance(item, MypyStatusItem) for item in self.session.items):
             yield MypyStatusItem.from_parent(
                 parent=self,
                 name=nodeid_name + "-status",
@@ -141,7 +139,7 @@ class MypyItem(pytest.Item):
 
     """A Mypy-related test Item."""
 
-    MARKER = 'mypy'
+    MARKER = "mypy"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -151,7 +149,7 @@ class MypyItem(pytest.Item):
     def from_parent(cls, *args, **kwargs):
         """Override from_parent for compatibility."""
         # pytest.Item.from_parent did not exist before pytest 5.4.
-        return getattr(super(), 'from_parent', cls)(*args, **kwargs)
+        return getattr(super(), "from_parent", cls)(*args, **kwargs)
 
     def repr_failure(self, excinfo):
         """
@@ -193,7 +191,7 @@ class MypyStatusItem(MypyItem):
         results = MypyResults.from_session(self.session)
         if results.status:
             raise MypyError(
-                'mypy exited with status {status}.'.format(
+                "mypy exited with status {status}.".format(
                     status=results.status,
                 ),
             )
@@ -218,33 +216,32 @@ class MypyResults:
         return json.dump(vars(self), results_f)
 
     @classmethod
-    def load(cls, results_f: TextIO) -> 'MypyResults':
+    def load(cls, results_f: TextIO) -> "MypyResults":
         """Get results cached by dump()."""
         return cls(**json.load(results_f))
 
     @classmethod
     def from_mypy(
-            cls,
-            items: List[MypyFileItem],
-            *,
-            opts: Optional[List[str]] = None
-    ) -> 'MypyResults':
+        cls,
+        items: List[MypyFileItem],
+        *,
+        opts: Optional[List[str]] = None  # noqa: C816
+    ) -> "MypyResults":
         """Generate results from mypy."""
 
         if opts is None:
             opts = mypy_argv[:]
         abspath_errors = {
-            os.path.abspath(str(item.fspath)): []
-            for item in items
+            os.path.abspath(str(item.fspath)): [] for item in items
         }  # type: MypyResults._abspath_errors_type
 
         stdout, stderr, status = mypy.api.run(opts + list(abspath_errors))
 
         unmatched_lines = []
-        for line in stdout.split('\n'):
+        for line in stdout.split("\n"):
             if not line:
                 continue
-            path, _, error = line.partition(':')
+            path, _, error = line.partition(":")
             abspath = os.path.abspath(path)
             try:
                 abspath_errors[abspath].append(error)
@@ -257,27 +254,26 @@ class MypyResults:
             stderr=stderr,
             status=status,
             abspath_errors=abspath_errors,
-            unmatched_stdout='\n'.join(unmatched_lines),
+            unmatched_stdout="\n".join(unmatched_lines),
         )
 
     @classmethod
-    def from_session(cls, session) -> 'MypyResults':
+    def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
         results_path = (
             session.config._mypy_results_path
-            if _is_master(session.config) else
-            _get_xdist_workerinput(session.config)['_mypy_results_path']
+            if _is_master(session.config)
+            else _get_xdist_workerinput(session.config)["_mypy_results_path"]
         )
-        with FileLock(results_path + '.lock'):
+        with FileLock(results_path + ".lock"):
             try:
-                with open(results_path, mode='r') as results_f:
+                with open(results_path, mode="r") as results_f:
                     results = cls.load(results_f)
             except FileNotFoundError:
-                results = cls.from_mypy([
-                    item for item in session.items
-                    if isinstance(item, MypyFileItem)
-                ])
-                with open(results_path, mode='w') as results_f:
+                results = cls.from_mypy(
+                    [item for item in session.items if isinstance(item, MypyFileItem)],
+                )
+                with open(results_path, mode="w") as results_f:
                     results.dump(results_f)
         return results
 
@@ -293,15 +289,15 @@ def pytest_terminal_summary(terminalreporter):
     """Report stderr and unrecognized lines from stdout."""
     config = _pytest_terminal_summary_config
     try:
-        with open(config._mypy_results_path, mode='r') as results_f:
+        with open(config._mypy_results_path, mode="r") as results_f:
             results = MypyResults.load(results_f)
     except FileNotFoundError:
         # No MypyItems executed.
         return
     if results.unmatched_stdout or results.stderr:
-        terminalreporter.section('mypy')
+        terminalreporter.section("mypy")
         if results.unmatched_stdout:
-            color = {'red': True} if results.status else {'green': True}
+            color = {"red": True} if results.status else {"green": True}
             terminalreporter.write_line(results.unmatched_stdout, **color)
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
