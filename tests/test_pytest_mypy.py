@@ -1,7 +1,11 @@
 import signal
 import textwrap
 
+import pexpect
 import pytest
+
+
+PYTEST_VERSION = tuple(int(v) for v in pytest.__version__.split(".")[:2])
 
 
 @pytest.fixture(
@@ -243,7 +247,21 @@ def test_api_nodeid_name(testdir, xdist_args):
     assert result.ret == 0
 
 
-def test_mypy_indirect(testdir, xdist_args):
+@pytest.mark.parametrize(
+    "module_name",
+    [
+        pytest.param(
+            "__init__",
+            marks=pytest.mark.xfail(
+                (3, 10) <= PYTEST_VERSION < (6, 2),
+                raises=AssertionError,
+                reason="https://github.com/pytest-dev/pytest/issues/8016",
+            ),
+        ),
+        "good",
+    ],
+)
+def test_mypy_indirect(testdir, xdist_args, module_name):
     """Verify that uncollected files checked by mypy cause a failure."""
     testdir.makepyfile(
         bad="""
@@ -251,12 +269,17 @@ def test_mypy_indirect(testdir, xdist_args):
                 return x * 2
         """,
     )
-    testdir.makepyfile(
-        good="""
-            import bad
-        """,
+    pyfile = testdir.makepyfile(
+        **{
+            module_name: """
+                import bad
+            """,
+        },
     )
-    result = testdir.runpytest_subprocess("--mypy", *xdist_args, "good.py")
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args, str(pyfile))
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    result.assert_outcomes(passed=mypy_file_checks, failed=mypy_status_check)
     assert result.ret != 0
 
 
@@ -309,7 +332,8 @@ def test_setup_cfg(testdir, xdist_args):
     assert result.ret != 0
 
 
-def test_looponfail(testdir):
+@pytest.mark.parametrize("module_name", ["__init__", "test_demo"])
+def test_looponfail(testdir, module_name):
     """Ensure that the plugin works with --looponfail."""
 
     pass_source = textwrap.dedent(
@@ -324,7 +348,7 @@ def test_looponfail(testdir):
             return x * 2
         """,
     )
-    pyfile = testdir.makepyfile(fail_source)
+    pyfile = testdir.makepyfile(**{module_name: fail_source})
     looponfailroot = testdir.mkdir("looponfailroot")
     looponfailroot_pyfile = looponfailroot.join(pyfile.basename)
     pyfile.move(looponfailroot_pyfile)
@@ -345,6 +369,14 @@ def test_looponfail(testdir):
         expect_timeout=30.0,
     )
 
+    num_tests = 2
+    if module_name == "__init__" and (3, 10) <= PYTEST_VERSION < (6, 2):
+        # https://github.com/pytest-dev/pytest/issues/8016
+        # Pytest had a bug where it assumed only a Package would have a basename of
+        # __init__.py. In this test, Pytest mistakes MypyFile for a Package and
+        # returns after collecting only one object (the MypyFileItem).
+        num_tests = 1
+
     def _expect_session():
         child.expect("==== test session starts ====")
 
@@ -353,10 +385,11 @@ def test_looponfail(testdir):
         child.expect("==== FAILURES ====")
         child.expect(pyfile.basename + " ____")
         child.expect("2: error: Incompatible return value")
-        # These only show with mypy>=0.730:
-        # child.expect("==== mypy ====")
-        # child.expect("Found 1 error in 1 file (checked 1 source file)")
-        child.expect("2 failed")
+        # if num_tests == 2:
+        #     # These only show with mypy>=0.730:
+        #     child.expect("==== mypy ====")
+        #     child.expect("Found 1 error in 1 file (checked 1 source file)")
+        child.expect(str(num_tests) + " failed")
         child.expect("#### LOOPONFAILING ####")
         _expect_waiting()
 
@@ -375,10 +408,27 @@ def test_looponfail(testdir):
     def _expect_success():
         for _ in range(2):
             _expect_session()
-            # These only show with mypy>=0.730:
-            # child.expect("==== mypy ====")
-            # child.expect("Success: no issues found in 1 source file")
-            child.expect("2 passed")
+            # if num_tests == 2:
+            #     # These only show with mypy>=0.730:
+            #     child.expect("==== mypy ====")
+            #     child.expect("Success: no issues found in 1 source file")
+            try:
+                child.expect(str(num_tests) + " passed")
+            except pexpect.exceptions.TIMEOUT:
+                if module_name == "__init__" and (6, 0) <= PYTEST_VERSION < (6, 2):
+                    # MypyItems hit the __init__.py bug too when --looponfail
+                    # re-collects them after the failing file is modified.
+                    # Unlike MypyFile, MypyItem is not a Collector, so this used
+                    # to cause an AttributeError until a workaround was added
+                    # (MypyItem.collect was defined to yield itself).
+                    # Mypy probably noticed the __init__.py problem during the
+                    # development of Pytest 6.0, but the error was addressed
+                    # with an isinstance assertion, which broke the workaround.
+                    # Here, we hit that assertion:
+                    child.expect("AssertionError")
+                    child.expect("1 error")
+                    pytest.xfail("https://github.com/pytest-dev/pytest/issues/8016")
+                raise
         _expect_waiting()
 
     def _break():
@@ -391,3 +441,27 @@ def test_looponfail(testdir):
     _break()
     _fix()
     child.kill(signal.SIGTERM)
+
+
+def test_mypy_item_collect(testdir, xdist_args):
+    """Ensure coverage for a 3.10<=pytest<6.0 workaround."""
+    testdir.makepyfile(
+        """
+        def test_mypy_item_collect(request):
+            plugin = request.config.pluginmanager.getplugin("mypy")
+            mypy_items = [
+                item
+                for item in request.session.items
+                if isinstance(item, plugin.MypyItem)
+            ]
+            assert mypy_items
+            for mypy_item in mypy_items:
+                assert all(item is mypy_item for item in mypy_item.collect())
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    test_count = 1
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    result.assert_outcomes(passed=test_count + mypy_file_checks + mypy_status_check)
+    assert result.ret == 0

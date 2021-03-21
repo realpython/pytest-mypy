@@ -145,6 +145,13 @@ class MypyItem(pytest.Item):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
 
+    def collect(self):
+        """
+        Partially work around https://github.com/pytest-dev/pytest/issues/8016
+        for pytest < 6.0 with --looponfail.
+        """
+        yield self
+
     @classmethod
     def from_parent(cls, *args, **kwargs):
         """Override from_parent for compatibility."""
