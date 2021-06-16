@@ -87,10 +87,6 @@ def pytest_configure(config):
 
             config.pluginmanager.register(_MypyXdistPlugin())
 
-    # pytest_terminal_summary cannot accept config before pytest 4.2.
-    global _pytest_terminal_summary_config
-    _pytest_terminal_summary_config = config
-
     config.addinivalue_line(
         "markers",
         "{marker}: mark tests to be checked by mypy.".format(marker=MypyItem.MARKER),
@@ -292,9 +288,8 @@ class MypyError(Exception):
     """
 
 
-def pytest_terminal_summary(terminalreporter):
+def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
-    config = _pytest_terminal_summary_config
     try:
         with open(config._mypy_results_path, mode="r") as results_f:
             results = MypyResults.load(results_f)
