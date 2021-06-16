@@ -118,7 +118,7 @@ def test_mypy_ignore_missings_imports(testdir, xdist_args):
     result.assert_outcomes(failed=mypy_checks)
     result.stdout.fnmatch_lines(
         [
-            "2: error: Cannot find *module named '{module_name}'".format(
+            "2: error: Cannot find *module named *{module_name}*".format(
                 module_name=module_name,
             ),
         ],
