@@ -94,6 +94,8 @@ def pytest_configure(config):
     if config.getoption("--mypy-ignore-missing-imports"):
         mypy_argv.append("--ignore-missing-imports")
 
+    if config.getoption("--mypy-config-file"):
+        mypy_argv.append("--config-file")
 
 def pytest_collect_file(path, parent):
     """Create a MypyFileItem for every file mypy should run on."""
