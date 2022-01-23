@@ -129,6 +129,34 @@ def test_mypy_ignore_missings_imports(testdir, xdist_args):
     assert result.ret == 0
 
 
+def test_mypy_config_file(testdir, xdist_args):
+    """Verify that --mypy-config-file works."""
+    testdir.makepyfile(
+        """
+            def pyfunc(x):
+                return x * 2
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(passed=mypy_checks)
+    assert result.ret == 0
+    mypy_config_file = testdir.makeini(
+        """
+            [mypy]
+            disallow_untyped_defs = True
+        """,
+    )
+    result = testdir.runpytest_subprocess(
+        "--mypy-config-file",
+        mypy_config_file,
+        *xdist_args,
+    )
+    result.assert_outcomes(failed=mypy_checks)
+
+
 def test_mypy_marker(testdir, xdist_args):
     """Verify that -m mypy only runs the mypy tests."""
     testdir.makepyfile(
