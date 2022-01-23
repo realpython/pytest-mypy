@@ -39,6 +39,7 @@ def pytest_addoption(parser):
         help="adds custom mypy config file",
     )
 
+
 XDIST_WORKERINPUT_ATTRIBUTE_NAMES = (
     "workerinput",
     # xdist < 2.0.0:
@@ -99,8 +100,10 @@ def pytest_configure(config):
     if config.getoption("--mypy-ignore-missing-imports"):
         mypy_argv.append("--ignore-missing-imports")
 
-    if config.getoption("--mypy-config-file"):
-        mypy_argv.append("--config-file={}".format(config.getoption("--mypy-config-file")))
+    mypy_config_file = config.getoption("--mypy-config-file")
+    if mypy_config_file:
+        mypy_argv.append("--config-file={}".format(mypy_config_file))
+
 
 def pytest_collect_file(path, parent):
     """Create a MypyFileItem for every file mypy should run on."""
