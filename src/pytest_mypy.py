@@ -108,7 +108,11 @@ def pytest_configure(config):
 def pytest_collect_file(path, parent):
     """Create a MypyFileItem for every file mypy should run on."""
     if path.ext in {".py", ".pyi"} and any(
-        [parent.config.option.mypy, parent.config.option.mypy_ignore_missing_imports],
+        [
+            parent.config.option.mypy,
+            parent.config.option.mypy_config_file,
+            parent.config.option.mypy_ignore_missing_imports,
+        ],
     ):
         # Do not create MypyFile instance for a .py file if a
         # .pyi file with the same name already exists;
