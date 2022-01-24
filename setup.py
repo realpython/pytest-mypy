@@ -34,7 +34,8 @@ setup(
     install_requires=[
         "attrs>=19.0",
         "filelock>=3.0",
-        "pytest>=4.6",
+        'pytest>=4.6; python_version>="3.5" and python_version<"3.10"',
+        'pytest>=6.2; python_version>="3.10"',
         'mypy>=0.500; python_version<"3.8"',
         'mypy>=0.700; python_version>="3.8" and python_version<"3.9"',
         'mypy>=0.780; python_version>="3.9"',
