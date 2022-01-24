@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.0](https://github.com/dbader/pytest-mypy/milestone/14)
+* Drop support for pytest<4.6.
+* Add --mypy-config-file.
+
 ## [0.8.1](https://github.com/dbader/pytest-mypy/milestone/16)
 * Add a partial workaround for https://github.com/pytest-dev/pytest/issues/8016.
 
