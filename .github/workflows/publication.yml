@@ -1,0 +1,17 @@
+name: Publication
+on:
+  release:
+    types: [created]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - run: python -m pip install --upgrade tox-gh-actions
+    - env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: tox -e publish -- upload
