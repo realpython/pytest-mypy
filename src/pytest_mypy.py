@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, TextIO
 
@@ -11,6 +12,7 @@ import mypy.api
 import pytest  # type: ignore
 
 
+PYTEST_MAJOR_VERSION = int(pytest.__version__.partition(".")[0])
 mypy_argv = []
 nodeid_name = "mypy"
 
@@ -105,9 +107,9 @@ def pytest_configure(config):
         mypy_argv.append("--config-file={}".format(mypy_config_file))
 
 
-def pytest_collect_file(path, parent):
+def pytest_collect_file(file_path, parent):
     """Create a MypyFileItem for every file mypy should run on."""
-    if path.ext in {".py", ".pyi"} and any(
+    if file_path.suffix in {".py", ".pyi"} and any(
         [
             parent.config.option.mypy,
             parent.config.option.mypy_config_file,
@@ -117,9 +119,21 @@ def pytest_collect_file(path, parent):
         # Do not create MypyFile instance for a .py file if a
         # .pyi file with the same name already exists;
         # pytest will complain about duplicate modules otherwise
-        if path.ext == ".pyi" or not path.new(ext=".pyi").isfile():
-            return MypyFile.from_parent(parent=parent, fspath=path)
+        if file_path.suffix == ".pyi" or not file_path.with_suffix(".pyi").is_file():
+            return MypyFile.from_parent(parent=parent, path=file_path)
     return None
+
+
+if PYTEST_MAJOR_VERSION < 7:  # pragma: no cover
+    _pytest_collect_file = pytest_collect_file
+
+    def pytest_collect_file(path, parent):  # type: ignore
+        try:
+            # https://docs.pytest.org/en/7.0.x/deprecations.html#py-path-local-arguments-for-hooks-replaced-with-pathlib-path
+            return _pytest_collect_file(Path(str(path)), parent)
+        except TypeError:
+            # https://docs.pytest.org/en/7.0.x/deprecations.html#fspath-argument-for-node-constructors-replaced-with-pathlib-path
+            return MypyFile.from_parent(parent=parent, fspath=path)
 
 
 class MypyFile(pytest.File):

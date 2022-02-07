@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.9.1](https://github.com/dbader/pytest-mypy/milestone/17)
+* Add support for pytest 7.
+
 ## [0.9.0](https://github.com/dbader/pytest-mypy/milestone/14)
 * Drop support for pytest<4.6.
 * Add --mypy-config-file.
