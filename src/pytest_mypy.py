@@ -222,8 +222,12 @@ class MypyStatusItem(MypyItem):
         results = MypyResults.from_session(self.session)
         if results.status:
             raise MypyError(
-                "mypy exited with status {status}.".format(
+                "mypy exited with status {status}.\n"
+                "stdout: {stdout}\n"
+                "stderr: {stderr}".format(
                     status=results.status,
+                    stdout=results.stdout,
+                    stderr=results.stderr,
                 ),
             )
 
