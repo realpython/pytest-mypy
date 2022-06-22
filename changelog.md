@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.10.0](https://github.com/dbader/pytest-mypy/milestone/18)
+* Drop support for python<3.6.
+
 ## [0.9.1](https://github.com/dbader/pytest-mypy/milestone/17)
 * Add support for pytest 7.
 

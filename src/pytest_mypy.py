@@ -97,14 +97,14 @@ def pytest_configure(config):
 
     config.addinivalue_line(
         "markers",
-        "{marker}: mark tests to be checked by mypy.".format(marker=MypyItem.MARKER),
+        f"{MypyItem.MARKER}: mark tests to be checked by mypy.",
     )
     if config.getoption("--mypy-ignore-missing-imports"):
         mypy_argv.append("--ignore-missing-imports")
 
     mypy_config_file = config.getoption("--mypy-config-file")
     if mypy_config_file:
-        mypy_argv.append("--config-file={}".format(mypy_config_file))
+        mypy_argv.append(f"--config-file={mypy_config_file}")
 
 
 def pytest_collect_file(file_path, parent):
@@ -221,11 +221,7 @@ class MypyStatusItem(MypyItem):
         """Raise a MypyError if mypy exited with a non-zero status."""
         results = MypyResults.from_session(self.session)
         if results.status:
-            raise MypyError(
-                "mypy exited with status {status}.".format(
-                    status=results.status,
-                ),
-            )
+            raise MypyError(f"mypy exited with status {results.status}.")
 
 
 @attr.s(frozen=True, kw_only=True)
@@ -256,7 +252,7 @@ class MypyResults:
         cls,
         items: List[MypyFileItem],
         *,
-        opts: Optional[List[str]] = None  # noqa: C816
+        opts: Optional[List[str]] = None,
     ) -> "MypyResults":
         """Generate results from mypy."""
 

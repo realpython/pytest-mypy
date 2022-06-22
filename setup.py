@@ -29,12 +29,11 @@ setup(
     py_modules=[
         os.path.splitext(os.path.basename(path))[0] for path in glob.glob("src/*.py")
     ],
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     setup_requires=["setuptools-scm>=3.5"],
     install_requires=[
         "attrs>=19.0",
         "filelock>=3.0",
-        'pytest>=4.6,<7.0; python_version>="3.5" and python_version<"3.6"',
         'pytest>=4.6; python_version>="3.6" and python_version<"3.10"',
         'pytest>=6.2; python_version>="3.10"',
         'mypy>=0.500; python_version<"3.8"',
@@ -48,7 +47,6 @@ setup(
         "Topic :: Software Development :: Testing",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
