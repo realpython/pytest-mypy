@@ -1,11 +1,14 @@
 import signal
 import textwrap
 
+import mypy.version
+from packaging.version import Version
 import pexpect
 import pytest
 
 
-PYTEST_VERSION = tuple(int(v) for v in pytest.__version__.split(".")[:2])
+MYPY_VERSION = Version(mypy.version.__version__)
+PYTEST_VERSION = Version(pytest.__version__)
 
 
 @pytest.fixture(
@@ -275,13 +278,18 @@ def test_api_nodeid_name(testdir, xdist_args):
     assert result.ret == 0
 
 
+@pytest.mark.xfail(
+    Version("0.971") <= MYPY_VERSION,
+    raises=AssertionError,
+    reason="https://github.com/python/mypy/issues/13701",
+)
 @pytest.mark.parametrize(
     "module_name",
     [
         pytest.param(
             "__init__",
             marks=pytest.mark.xfail(
-                (3, 10) <= PYTEST_VERSION < (6, 2),
+                Version("3.10") <= PYTEST_VERSION < Version("6.2"),
                 raises=AssertionError,
                 reason="https://github.com/pytest-dev/pytest/issues/8016",
             ),
@@ -398,7 +406,7 @@ def test_looponfail(testdir, module_name):
     )
 
     num_tests = 2
-    if module_name == "__init__" and (3, 10) <= PYTEST_VERSION < (6, 2):
+    if module_name == "__init__" and Version("3.10") <= PYTEST_VERSION < Version("6.2"):
         # https://github.com/pytest-dev/pytest/issues/8016
         # Pytest had a bug where it assumed only a Package would have a basename of
         # __init__.py. In this test, Pytest mistakes MypyFile for a Package and
@@ -443,7 +451,9 @@ def test_looponfail(testdir, module_name):
             try:
                 child.expect(str(num_tests) + " passed")
             except pexpect.exceptions.TIMEOUT:
-                if module_name == "__init__" and (6, 0) <= PYTEST_VERSION < (6, 2):
+                if module_name == "__init__" and (
+                    Version("6.0") <= PYTEST_VERSION < Version("6.2")
+                ):
                     # MypyItems hit the __init__.py bug too when --looponfail
                     # re-collects them after the failing file is modified.
                     # Unlike MypyFile, MypyItem is not a Collector, so this used
