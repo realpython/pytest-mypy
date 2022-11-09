@@ -402,7 +402,7 @@ def test_looponfail(testdir, module_name):
 
     child = testdir.spawn_pytest(
         "--mypy --looponfail " + str(pyfile),
-        expect_timeout=30.0,
+        expect_timeout=60.0,
     )
 
     num_tests = 2
