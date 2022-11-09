@@ -364,7 +364,7 @@ def test_setup_cfg(testdir, xdist_args):
         """,
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    result.stdout.fnmatch_lines(["1: error: Function is missing a type annotation"])
+    result.stdout.fnmatch_lines(["1: error: Function is missing a type annotation*"])
     assert result.ret != 0
 
 
