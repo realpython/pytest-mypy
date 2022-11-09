@@ -38,7 +38,8 @@ setup(
         'pytest>=6.2; python_version>="3.10"',
         'mypy>=0.500; python_version<"3.8"',
         'mypy>=0.700; python_version>="3.8" and python_version<"3.9"',
-        'mypy>=0.780; python_version>="3.9"',
+        'mypy>=0.780; python_version>="3.9" and python_version<"3.11"',
+        'mypy>=0.900; python_version>="3.11"',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
