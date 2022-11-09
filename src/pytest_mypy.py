@@ -262,7 +262,9 @@ class MypyResults:
             os.path.abspath(str(item.fspath)): [] for item in items
         }  # type: MypyResults._abspath_errors_type
 
-        stdout, stderr, status = mypy.api.run(opts + list(abspath_errors))
+        stdout, stderr, status = mypy.api.run(
+            opts + [os.path.relpath(key) for key in abspath_errors.keys()]
+        )
 
         unmatched_lines = []
         for line in stdout.split("\n"):
