@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.10.3](https://github.com/dbader/pytest-mypy/milestone/21)
+* Stop failing if mypy only produces notes.
+
 ## [0.10.2](https://github.com/dbader/pytest-mypy/milestone/20)
 * Update and loosen [build-system] requirements.
 
