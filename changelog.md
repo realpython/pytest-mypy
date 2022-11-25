@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.10.2](https://github.com/dbader/pytest-mypy/milestone/20)
+* Update and loosen [build-system] requirements.
+
 ## [0.10.1](https://github.com/dbader/pytest-mypy/milestone/19)
 * Work around https://github.com/python/mypy/issues/14042.
 * Add support for Python 3.11.
