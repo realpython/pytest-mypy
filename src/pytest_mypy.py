@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, TextIO
+import warnings
 
 import attr
 from filelock import FileLock  # type: ignore
@@ -202,7 +203,13 @@ class MypyFileItem(MypyItem):
         abspath = os.path.abspath(str(self.fspath))
         errors = results.abspath_errors.get(abspath)
         if errors:
-            raise MypyError(file_error_formatter(self, results, errors))
+            if not all(
+                error.partition(":")[2].partition(":")[0].strip() == "note"
+                for error in errors
+            ):
+                raise MypyError(file_error_formatter(self, results, errors))
+            # This line cannot be easily covered on mypy < 0.990:
+            warnings.warn("\n" + "\n".join(errors), MypyWarning)  # pragma: no cover
 
     def reportinfo(self):
         """Produce a heading for the test report."""
@@ -312,6 +319,10 @@ class MypyError(Exception):
     An error caught by mypy, e.g a type checker violation
     or a syntax error.
     """
+
+
+class MypyWarning(pytest.PytestWarning):
+    """A non-failure message regarding the mypy run."""
 
 
 def pytest_terminal_summary(terminalreporter, config):

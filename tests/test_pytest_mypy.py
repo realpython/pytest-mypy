@@ -98,6 +98,33 @@ def test_mypy_error(testdir, xdist_args):
     assert result.ret != 0
 
 
+def test_mypy_annotation_unchecked(testdir, xdist_args):
+    """Verify that annotation-unchecked warnings do not manifest as an error."""
+    testdir.makepyfile(
+        """
+            def pyfunc(x):
+                y: int = 2
+                return x * y
+        """,
+    )
+    result = testdir.runpytest_subprocess(*xdist_args)
+    result.assert_outcomes()
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    outcomes = {"passed": mypy_checks}
+    # mypy doesn't emit annotation-unchecked warnings until 0.990:
+    min_mypy_version = Version("0.990")
+    if MYPY_VERSION >= min_mypy_version and PYTEST_VERSION >= Version("7.0"):
+        # assert_outcomes does not support `warnings` until 7.x.
+        outcomes["warnings"] = 1
+    result.assert_outcomes(**outcomes)
+    if MYPY_VERSION >= min_mypy_version:
+        result.stdout.fnmatch_lines(["*MypyWarning*"])
+    assert result.ret == 0
+
+
 def test_mypy_ignore_missings_imports(testdir, xdist_args):
     """
     Verify that --mypy-ignore-missing-imports
