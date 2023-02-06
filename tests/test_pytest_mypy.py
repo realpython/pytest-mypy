@@ -10,6 +10,7 @@ import pytest_mypy
 
 
 MYPY_VERSION = Version(mypy.version.__version__)
+PYTEST_VERSION = Version(pytest.__version__)
 PYTHON_VERSION = Version(
     ".".join(
         str(token)
@@ -58,6 +59,30 @@ def test_mypy_success(testdir, pyfile_count, xdist_args):
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(passed=mypy_checks)
     assert result.ret == pytest.ExitCode.OK
+
+
+@pytest.mark.skipif(
+    PYTEST_VERSION < Version("7.4"),
+    reason="https://github.com/pytest-dev/pytest/pull/10935",
+)
+@pytest.mark.skipif(
+    PYTHON_VERSION < Version("3.10"),
+    reason="PEP 597 was added in Python 3.10.",
+)
+@pytest.mark.skipif(
+    PYTHON_VERSION >= Version("3.12") and MYPY_VERSION < Version("1.5"),
+    reason="https://github.com/python/mypy/pull/15558",
+)
+def test_mypy_encoding_warnings(testdir, monkeypatch):
+    """Ensure no warnings are detected by PYTHONWARNDEFAULTENCODING."""
+    testdir.makepyfile("")
+    monkeypatch.setenv("PYTHONWARNDEFAULTENCODING", "1")
+    result = testdir.runpytest_subprocess("--mypy")
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    expected_warnings = 2  # https://github.com/python/mypy/issues/14603
+    result.assert_outcomes(passed=mypy_checks, warnings=expected_warnings)
 
 
 def test_mypy_pyi(testdir, xdist_args):
@@ -524,7 +549,7 @@ def test_mypy_no_output(testdir, xdist_args):
             def pytest_configure(config):
                 pytest_mypy = config.pluginmanager.getplugin("mypy")
                 mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
-                with open(mypy_config_stash.mypy_results_path, mode="w") as results_f:
+                with open(mypy_config_stash.mypy_results_path, mode="wb") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
                         stdout="",
@@ -602,7 +627,7 @@ def test_mypy_xfail_reports_stdout(testdir, xdist_args):
             def pytest_configure(config):
                 pytest_mypy = config.pluginmanager.getplugin("mypy")
                 mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
-                with open(mypy_config_stash.mypy_results_path, mode="w") as results_f:
+                with open(mypy_config_stash.mypy_results_path, mode="wb") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
                         stdout="{stdout}",
