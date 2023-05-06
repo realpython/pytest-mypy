@@ -348,6 +348,30 @@ def test_api_error_formatter(testdir, xdist_args):
     assert result.ret != 0
 
 
+@pytest.mark.xfail(
+    Version("0.900") > MYPY_VERSION,
+    reason="Mypy added pyproject.toml configuration in 0.900.",
+)
+def test_pyproject_toml(testdir, xdist_args):
+    """Ensure that the plugin allows configuration with pyproject.toml."""
+    testdir.makefile(
+        ".toml",
+        pyproject="""
+            [tool.mypy]
+            disallow_untyped_defs = true
+        """,
+    )
+    testdir.makepyfile(
+        conftest="""
+            def pyfunc(x):
+                return x * 2
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    result.stdout.fnmatch_lines(["1: error: Function is missing a type annotation*"])
+    assert result.ret != 0
+
+
 def test_setup_cfg(testdir, xdist_args):
     """Ensure that the plugin allows configuration with setup.cfg."""
     testdir.makefile(
