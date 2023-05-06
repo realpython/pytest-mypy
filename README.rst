@@ -63,11 +63,11 @@ Meta
 
 Daniel Bader – `@dbader_org`_ – https://dbader.org – mail@dbader.org
 
-https://github.com/dbader/pytest-mypy
+https://github.com/realpython/pytest-mypy
 
 
 .. _`MIT`: http://opensource.org/licenses/MIT
-.. _`file an issue`: https://github.com/dbader/pytest-mypy/issues
+.. _`file an issue`: https://github.com/realpython/pytest-mypy/issues
 .. _`pip`: https://pypi.python.org/pypi/pip/
 .. _`PyPI`: https://pypi.python.org/pypi
 .. _`mypy`: http://mypy-lang.org/
