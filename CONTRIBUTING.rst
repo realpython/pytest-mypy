@@ -4,10 +4,6 @@ Contributing
 Contributions are very welcome. Tests can be run with `tox <https://tox.readthedocs.io/en/latest/>`_.
 Please ensure the coverage at least stays the same before you submit a pull request.
 
-.. image:: https://travis-ci.org/dbader/pytest-mypy.svg?branch=master
-    :target: https://travis-ci.org/dbader/pytest-mypy
-    :alt: See Build Status on Travis CI
-
 Development Environment Setup
 -----------------------------
 
@@ -21,7 +17,7 @@ Here's how to install pytest-mypy in development mode so you can test your chang
 How to publish a new version to PyPI
 ------------------------------------
 
-Push a tag, and Travis CI will publish it automatically.
+Push a tag, and the release will be published automatically.
 To publish manually:
 
 .. code-block:: bash
