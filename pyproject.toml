@@ -39,10 +39,10 @@ dependencies = [
     "mypy>=0.900; python_version>='3.11'",
 ]
 
-[project.urls]
-homepage = "https://github.com/realpython/pytest-mypy"
-
 [project.entry-points.pytest11]
 mypy = "pytest_mypy"
+
+[project.urls]
+homepage = "https://github.com/realpython/pytest-mypy"
 
 [tool.setuptools_scm]
