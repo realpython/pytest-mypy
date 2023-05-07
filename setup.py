@@ -20,7 +20,7 @@ setup(
     maintainer="David Tucker",
     maintainer_email="david@tucker.name",
     license="MIT",
-    url="https://github.com/dbader/pytest-mypy",
+    url="https://github.com/realpython/pytest-mypy",
     description="Mypy static type checker plugin for Pytest",
     long_description=read("README.rst"),
     long_description_content_type="text/x-rst",
