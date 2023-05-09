@@ -16,6 +16,7 @@ import pytest  # type: ignore
 PYTEST_MAJOR_VERSION = int(pytest.__version__.partition(".")[0])
 mypy_argv = []
 nodeid_name = "mypy"
+terminal_summary_title = "mypy"
 
 
 def default_file_error_formatter(item, results, errors):
@@ -205,8 +206,7 @@ class MypyFileItem(MypyItem):
                 for error in errors
             ):
                 raise MypyError(file_error_formatter(self, results, errors))
-            # This line cannot be easily covered on mypy < 0.990:
-            warnings.warn("\n" + "\n".join(errors), MypyWarning)  # pragma: no cover
+            warnings.warn("\n" + "\n".join(errors), MypyWarning)
 
     def reportinfo(self):
         """Produce a heading for the test report."""
@@ -258,7 +258,9 @@ class MypyResults:
     ) -> "MypyResults":
         """Generate results from mypy."""
 
-        if opts is None:
+        # This is covered by test_mypy_results_from_mypy_with_opts;
+        # however, coverage is not recognized on py38-pytest4.6:
+        if opts is None:  # pragma: no cover
             opts = mypy_argv[:]
         abspath_errors = {
             os.path.abspath(str(item.fspath)): [] for item in items
@@ -322,18 +324,20 @@ class MypyWarning(pytest.PytestWarning):
 
 def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
-    if _is_master(config):
-        try:
-            with open(config._mypy_results_path, mode="r") as results_f:
-                results = MypyResults.load(results_f)
-        except FileNotFoundError:
-            # No MypyItems executed.
-            return
-        if results.unmatched_stdout or results.stderr:
-            terminalreporter.section("mypy")
-            if results.unmatched_stdout:
-                color = {"red": True} if results.status else {"green": True}
-                terminalreporter.write_line(results.unmatched_stdout, **color)
-            if results.stderr:
-                terminalreporter.write_line(results.stderr, yellow=True)
-        os.remove(config._mypy_results_path)
+    if not _is_master(config):
+        # This isn't hit in pytest 5.0 for some reason.
+        return  # pragma: no cover
+    try:
+        with open(config._mypy_results_path, mode="r") as results_f:
+            results = MypyResults.load(results_f)
+    except FileNotFoundError:
+        # No MypyItems executed.
+        return
+    if results.unmatched_stdout or results.stderr:
+        terminalreporter.section(terminal_summary_title)
+        if results.unmatched_stdout:
+            color = {"red": True} if results.status else {"green": True}
+            terminalreporter.write_line(results.unmatched_stdout, **color)
+        if results.stderr:
+            terminalreporter.write_line(results.stderr, yellow=True)
+    os.remove(config._mypy_results_path)

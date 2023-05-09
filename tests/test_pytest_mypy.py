@@ -1,4 +1,5 @@
 import signal
+import sys
 import textwrap
 
 import mypy.version
@@ -6,9 +7,21 @@ from packaging.version import Version
 import pexpect
 import pytest
 
+import pytest_mypy
+
 
 MYPY_VERSION = Version(mypy.version.__version__)
 PYTEST_VERSION = Version(pytest.__version__)
+PYTHON_VERSION = Version(
+    ".".join(
+        str(token)
+        for token in [
+            sys.version_info.major,
+            sys.version_info.minor,
+            sys.version_info.micro,
+        ]
+    )
+)
 
 
 @pytest.fixture(
@@ -100,7 +113,7 @@ def test_mypy_error(testdir, xdist_args):
     assert "_mypy_results_path" not in result.stderr.str()
 
 
-def test_mypy_annotation_unchecked(testdir, xdist_args):
+def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
     """Verify that annotation-unchecked warnings do not manifest as an error."""
     testdir.makepyfile(
         """
@@ -109,6 +122,29 @@ def test_mypy_annotation_unchecked(testdir, xdist_args):
                 return x * y
         """,
     )
+    min_mypy_version = Version("0.990")
+    if MYPY_VERSION < min_mypy_version:
+        # mypy doesn't emit annotation-unchecked warnings until 0.990:
+        fake_mypy_path = tmp_path / "mypy"
+        fake_mypy_path.mkdir()
+        (fake_mypy_path / "__init__.py").touch()
+        (fake_mypy_path / "api.py").write_text(
+            textwrap.dedent(
+                """
+                    def run(*args, **kwargs):
+                        return (
+                            "test_mypy_annotation_unchecked.py:2:"
+                            " note: By default the bodies of untyped functions"
+                            " are not checked, consider using --check-untyped-defs"
+                            "  [annotation-unchecked]\\nSuccess: no issues found in"
+                            " 1 source file\\n",
+                            "",
+                            0,
+                        )
+                """
+            )
+        )
+        monkeypatch.setenv("PYTHONPATH", str(tmp_path))
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
@@ -552,3 +588,68 @@ def test_mypy_item_collect(testdir, xdist_args):
     mypy_status_check = 1
     result.assert_outcomes(passed=test_count + mypy_file_checks + mypy_status_check)
     assert result.ret == 0
+
+
+@pytest.mark.xfail(
+    MYPY_VERSION < Version("0.750"),
+    raises=AssertionError,
+    reason="https://github.com/python/mypy/issues/7800",
+)
+def test_mypy_results_from_mypy_with_opts():
+    """MypyResults.from_mypy respects passed options."""
+    mypy_results = pytest_mypy.MypyResults.from_mypy([], opts=["--version"])
+    assert mypy_results.status == 0
+    assert mypy_results.abspath_errors == {}
+    assert str(MYPY_VERSION) in mypy_results.stdout
+
+
+@pytest.mark.xfail(
+    Version("3.7") < PYTHON_VERSION < Version("3.9")
+    and Version("0.710") <= MYPY_VERSION < Version("0.720"),
+    raises=AssertionError,
+    reason="Mypy crashes for some reason.",
+)
+def test_mypy_no_output(testdir, xdist_args):
+    """No terminal summary is shown if there is no output from mypy."""
+    type_ignore = (
+        "# type: ignore"
+        if (
+            PYTEST_VERSION
+            < Version("6.0")  # Pytest didn't add type annotations until 6.0.
+            or MYPY_VERSION < Version("0.710")
+        )
+        else ""
+    )
+    testdir.makepyfile(
+        # Mypy prints a success message to stderr by default:
+        # "Success: no issues found in 1 source file"
+        # Clear stderr and unmatched_stdout to simulate mypy having no output:
+        conftest=f"""
+            import pytest  {type_ignore}
+
+            @pytest.hookimpl(hookwrapper=True)
+            def pytest_terminal_summary(config):
+                mypy_results_path = getattr(config, "_mypy_results_path", None)
+                if not mypy_results_path:
+                    # xdist worker
+                    return
+                pytest_mypy = config.pluginmanager.getplugin("mypy")
+                with open(mypy_results_path, mode="w") as results_f:
+                    pytest_mypy.MypyResults(
+                        opts=[],
+                        stdout="",
+                        stderr="",
+                        status=0,
+                        abspath_errors={{}},
+                        unmatched_stdout="",
+                    ).dump(results_f)
+                yield
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(passed=mypy_checks)
+    assert result.ret == 0
+    assert f"= {pytest_mypy.terminal_summary_title} =" not in str(result.stdout)
