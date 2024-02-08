@@ -89,6 +89,7 @@ def test_mypy_error(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
+    assert "_mypy_results_path" not in result.stderr.str()
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1
     mypy_status_check = 1
@@ -96,6 +97,7 @@ def test_mypy_error(testdir, xdist_args):
     result.assert_outcomes(failed=mypy_checks)
     result.stdout.fnmatch_lines(["2: error: Incompatible return value*"])
     assert result.ret != 0
+    assert "_mypy_results_path" not in result.stderr.str()
 
 
 def test_mypy_annotation_unchecked(testdir, xdist_args):

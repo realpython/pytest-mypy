@@ -327,17 +327,18 @@ class MypyWarning(pytest.PytestWarning):
 
 def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
-    try:
-        with open(config._mypy_results_path, mode="r") as results_f:
-            results = MypyResults.load(results_f)
-    except FileNotFoundError:
-        # No MypyItems executed.
-        return
-    if results.unmatched_stdout or results.stderr:
-        terminalreporter.section("mypy")
-        if results.unmatched_stdout:
-            color = {"red": True} if results.status else {"green": True}
-            terminalreporter.write_line(results.unmatched_stdout, **color)
-        if results.stderr:
-            terminalreporter.write_line(results.stderr, yellow=True)
-    os.remove(config._mypy_results_path)
+    if _is_master(config):
+        try:
+            with open(config._mypy_results_path, mode="r") as results_f:
+                results = MypyResults.load(results_f)
+        except FileNotFoundError:
+            # No MypyItems executed.
+            return
+        if results.unmatched_stdout or results.stderr:
+            terminalreporter.section("mypy")
+            if results.unmatched_stdout:
+                color = {"red": True} if results.status else {"green": True}
+                terminalreporter.write_line(results.unmatched_stdout, **color)
+            if results.stderr:
+                terminalreporter.write_line(results.stderr, yellow=True)
+        os.remove(config._mypy_results_path)
