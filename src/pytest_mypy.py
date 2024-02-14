@@ -138,7 +138,6 @@ if PYTEST_MAJOR_VERSION < 7:  # pragma: no cover
 
 
 class MypyFile(pytest.File):
-
     """A File that Mypy will run on."""
 
     @classmethod
@@ -161,7 +160,6 @@ class MypyFile(pytest.File):
 
 
 class MypyItem(pytest.Item):
-
     """A Mypy-related test Item."""
 
     MARKER = "mypy"
@@ -194,7 +192,6 @@ class MypyItem(pytest.Item):
 
 
 class MypyFileItem(MypyItem):
-
     """A check for Mypy errors in a File."""
 
     def runtest(self):
@@ -221,7 +218,6 @@ class MypyFileItem(MypyItem):
 
 
 class MypyStatusItem(MypyItem):
-
     """A check for a non-zero mypy exit status."""
 
     def runtest(self):
@@ -233,7 +229,6 @@ class MypyStatusItem(MypyItem):
 
 @attr.s(frozen=True, kw_only=True)
 class MypyResults:
-
     """Parsed results from Mypy."""
 
     _abspath_errors_type = Dict[str, List[str]]
