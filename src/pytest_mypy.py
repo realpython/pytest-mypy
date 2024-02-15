@@ -60,10 +60,10 @@ def _get_xdist_workerinput(config_node):
     return workerinput
 
 
-def _is_master(config):
+def _is_xdist_controller(config):
     """
     True if the code running the given pytest.config object is running in
-    an xdist master node or not running xdist at all.
+    an xdist controller node or not running xdist at all.
     """
     return _get_xdist_workerinput(config) is None
 
@@ -74,7 +74,7 @@ def pytest_configure(config):
     register a custom marker for MypyItems,
     and configure the plugin based on the CLI.
     """
-    if _is_master(config):
+    if _is_xdist_controller(config):
 
         # Get the path to a temporary file and delete it.
         # The first MypyItem to run will see the file does not exist,
@@ -295,7 +295,7 @@ class MypyResults:
         """Load (or generate) cached mypy results for a pytest session."""
         results_path = (
             session.config._mypy_results_path
-            if _is_master(session.config)
+            if _is_xdist_controller(session.config)
             else _get_xdist_workerinput(session.config)["_mypy_results_path"]
         )
         with FileLock(results_path + ".lock"):
@@ -324,7 +324,7 @@ class MypyWarning(pytest.PytestWarning):
 
 def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
-    if not _is_master(config):
+    if not _is_xdist_controller(config):
         # This isn't hit in pytest 5.0 for some reason.
         return  # pragma: no cover
     try:
