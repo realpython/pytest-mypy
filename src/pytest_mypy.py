@@ -258,9 +258,7 @@ class MypyResults:
     ) -> "MypyResults":
         """Generate results from mypy."""
 
-        # This is covered by test_mypy_results_from_mypy_with_opts;
-        # however, coverage is not recognized on py38-pytest4.6:
-        if opts is None:  # pragma: no cover
+        if opts is None:
             opts = mypy_argv[:]
         abspath_errors = {
             str(path.absolute()): [] for path in paths
