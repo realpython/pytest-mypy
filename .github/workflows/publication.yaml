@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.8'
+        python-version: "3.9"
     - run: python -m pip install --upgrade tox-gh-actions
     - env:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
