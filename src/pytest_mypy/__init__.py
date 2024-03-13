@@ -420,8 +420,4 @@ class MypyControllerPlugin:
 
     def pytest_unconfigure(self, config: pytest.Config) -> None:
         """Clean up the mypy results path."""
-        try:
-            config.stash[stash_key["config"]].mypy_results_path.unlink()
-        except FileNotFoundError:  # compat python < 3.8 (missing_ok=True)
-            # No MypyItems executed.
-            return
+        config.stash[stash_key["config"]].mypy_results_path.unlink(missing_ok=True)
