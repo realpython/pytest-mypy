@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from xdist.workermanage import WorkerController  # type: ignore
 
 
-@dataclass(frozen=True)  # compat python < 3.10 (kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class MypyConfigStash:
     """Plugin data stored in the pytest.Config stash."""
 
@@ -299,7 +299,7 @@ class MypyStatusItem(MypyItem):
             raise MypyError(f"mypy exited with status {results.status}.")
 
 
-@dataclass(frozen=True)  # compat python < 3.10 (kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class MypyResults:
     """Parsed results from Mypy."""
 
