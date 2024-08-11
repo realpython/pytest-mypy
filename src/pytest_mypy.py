@@ -252,7 +252,7 @@ class MypyResults:
     @classmethod
     def from_mypy(
         cls,
-        items: List[MypyFileItem],
+        paths: List[Path],
         *,
         opts: Optional[List[str]] = None,
     ) -> "MypyResults":
@@ -263,7 +263,7 @@ class MypyResults:
         if opts is None:  # pragma: no cover
             opts = mypy_argv[:]
         abspath_errors = {
-            os.path.abspath(str(item.fspath)): [] for item in items
+            str(path.absolute()): [] for path in paths
         }  # type: MypyResults._abspath_errors_type
 
         stdout, stderr, status = mypy.api.run(
@@ -304,7 +304,11 @@ class MypyResults:
                     results = cls.load(results_f)
             except FileNotFoundError:
                 results = cls.from_mypy(
-                    [item for item in session.items if isinstance(item, MypyFileItem)],
+                    [
+                        Path(item.fspath)
+                        for item in session.items
+                        if isinstance(item, MypyFileItem)
+                    ],
                 )
                 with open(results_path, mode="w") as results_f:
                     results.dump(results_f)
