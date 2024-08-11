@@ -166,7 +166,7 @@ class MypyFileItem(MypyItem):
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
-        abspath = os.path.abspath(str(self.fspath))
+        abspath = str(self.path.absolute())
         errors = results.abspath_errors.get(abspath)
         if errors:
             if not all(
@@ -179,9 +179,9 @@ class MypyFileItem(MypyItem):
     def reportinfo(self):
         """Produce a heading for the test report."""
         return (
-            self.fspath,
+            self.path,
             None,
-            str(Path(str(self.fspath)).relative_to(self.config.invocation_params.dir)),
+            str(self.path.relative_to(self.config.invocation_params.dir)),
         )
 
 
@@ -271,7 +271,7 @@ class MypyResults:
             except FileNotFoundError:
                 results = cls.from_mypy(
                     [
-                        Path(item.fspath)
+                        item.path
                         for item in session.items
                         if isinstance(item, MypyFileItem)
                     ],
