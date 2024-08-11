@@ -1,7 +1,6 @@
 """Mypy static type checker plugin for Pytest"""
 
 import json
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, TextIO
@@ -232,8 +231,9 @@ class MypyResults:
             str(path.absolute()): [] for path in paths
         }  # type: MypyResults._abspath_errors_type
 
+        cwd = Path.cwd()
         stdout, stderr, status = mypy.api.run(
-            opts + [os.path.relpath(key) for key in abspath_errors.keys()]
+            opts + [str(Path(key).relative_to(cwd)) for key in abspath_errors.keys()]
         )
 
         unmatched_lines = []
@@ -241,7 +241,7 @@ class MypyResults:
             if not line:
                 continue
             path, _, error = line.partition(":")
-            abspath = os.path.abspath(path)
+            abspath = str(Path(path).absolute())
             try:
                 abspath_errors[abspath].append(error)
             except KeyError:
@@ -310,4 +310,4 @@ def pytest_terminal_summary(terminalreporter, config):
             terminalreporter.write_line(results.unmatched_stdout, **color)
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
-    os.remove(config._mypy_results_path)
+    Path(config._mypy_results_path).unlink()
