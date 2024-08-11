@@ -1,7 +1,6 @@
 """Mypy static type checker plugin for Pytest"""
 
 import json
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, TextIO
@@ -10,10 +9,9 @@ import warnings
 import attr
 from filelock import FileLock  # type: ignore
 import mypy.api
-import pytest  # type: ignore
+import pytest
 
 
-PYTEST_MAJOR_VERSION = int(pytest.__version__.partition(".")[0])
 mypy_argv = []
 nodeid_name = "mypy"
 terminal_summary_title = "mypy"
@@ -126,26 +124,8 @@ def pytest_collect_file(file_path, parent):
     return None
 
 
-if PYTEST_MAJOR_VERSION < 7:  # pragma: no cover
-    _pytest_collect_file = pytest_collect_file
-
-    def pytest_collect_file(path, parent):  # type: ignore
-        try:
-            # https://docs.pytest.org/en/7.0.x/deprecations.html#py-path-local-arguments-for-hooks-replaced-with-pathlib-path
-            return _pytest_collect_file(Path(str(path)), parent)
-        except TypeError:
-            # https://docs.pytest.org/en/7.0.x/deprecations.html#fspath-argument-for-node-constructors-replaced-with-pathlib-path
-            return MypyFile.from_parent(parent=parent, fspath=path)
-
-
 class MypyFile(pytest.File):
     """A File that Mypy will run on."""
-
-    @classmethod
-    def from_parent(cls, *args, **kwargs):
-        """Override from_parent for compatibility."""
-        # pytest.File.from_parent did not exist before pytest 5.4.
-        return getattr(super(), "from_parent", cls)(*args, **kwargs)
 
     def collect(self):
         """Create a MypyFileItem for the File."""
@@ -169,19 +149,6 @@ class MypyItem(pytest.Item):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
 
-    def collect(self):
-        """
-        Partially work around https://github.com/pytest-dev/pytest/issues/8016
-        for pytest < 6.0 with --looponfail.
-        """
-        yield self
-
-    @classmethod
-    def from_parent(cls, *args, **kwargs):
-        """Override from_parent for compatibility."""
-        # pytest.Item.from_parent did not exist before pytest 5.4.
-        return getattr(super(), "from_parent", cls)(*args, **kwargs)
-
     def repr_failure(self, excinfo):
         """
         Unwrap mypy errors so we get a clean error message without the
@@ -198,7 +165,7 @@ class MypyFileItem(MypyItem):
     def runtest(self):
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
-        abspath = os.path.abspath(str(self.fspath))
+        abspath = str(self.path.absolute())
         errors = results.abspath_errors.get(abspath)
         if errors:
             if not all(
@@ -211,9 +178,9 @@ class MypyFileItem(MypyItem):
     def reportinfo(self):
         """Produce a heading for the test report."""
         return (
-            self.fspath,
+            self.path,
             None,
-            self.config.invocation_dir.bestrelpath(self.fspath),
+            str(self.path.relative_to(self.config.invocation_params.dir)),
         )
 
 
@@ -258,16 +225,15 @@ class MypyResults:
     ) -> "MypyResults":
         """Generate results from mypy."""
 
-        # This is covered by test_mypy_results_from_mypy_with_opts;
-        # however, coverage is not recognized on py38-pytest4.6:
-        if opts is None:  # pragma: no cover
+        if opts is None:
             opts = mypy_argv[:]
         abspath_errors = {
             str(path.absolute()): [] for path in paths
         }  # type: MypyResults._abspath_errors_type
 
+        cwd = Path.cwd()
         stdout, stderr, status = mypy.api.run(
-            opts + [os.path.relpath(key) for key in abspath_errors.keys()]
+            opts + [str(Path(key).relative_to(cwd)) for key in abspath_errors.keys()]
         )
 
         unmatched_lines = []
@@ -275,7 +241,7 @@ class MypyResults:
             if not line:
                 continue
             path, _, error = line.partition(":")
-            abspath = os.path.abspath(path)
+            abspath = str(Path(path).absolute())
             try:
                 abspath_errors[abspath].append(error)
             except KeyError:
@@ -305,7 +271,7 @@ class MypyResults:
             except FileNotFoundError:
                 results = cls.from_mypy(
                     [
-                        Path(item.fspath)
+                        item.path
                         for item in session.items
                         if isinstance(item, MypyFileItem)
                     ],
@@ -344,4 +310,4 @@ def pytest_terminal_summary(terminalreporter, config):
             terminalreporter.write_line(results.unmatched_stdout, **color)
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
-    os.remove(config._mypy_results_path)
+    Path(config._mypy_results_path).unlink()

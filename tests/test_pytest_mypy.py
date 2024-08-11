@@ -53,12 +53,13 @@ def test_mypy_success(testdir, pyfile_count, xdist_args):
     )
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
+    assert result.ret == pytest.ExitCode.NO_TESTS_COLLECTED
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = pyfile_count
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_mypy_pyi(testdir, xdist_args):
@@ -89,7 +90,7 @@ def test_mypy_pyi(testdir, xdist_args):
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_mypy_error(testdir, xdist_args):
@@ -103,14 +104,15 @@ def test_mypy_error(testdir, xdist_args):
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
     assert "_mypy_results_path" not in result.stderr.str()
+    assert result.ret == pytest.ExitCode.NO_TESTS_COLLECTED
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(failed=mypy_checks)
     result.stdout.fnmatch_lines(["2: error: Incompatible return value*"])
-    assert result.ret != 0
     assert "_mypy_results_path" not in result.stderr.str()
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
@@ -131,7 +133,7 @@ def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
     outcomes = {"passed": mypy_checks}
     result.assert_outcomes(**outcomes)
     result.stdout.fnmatch_lines(["*MypyWarning*"])
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_mypy_ignore_missings_imports(testdir, xdist_args):
@@ -162,10 +164,10 @@ def test_mypy_ignore_missings_imports(testdir, xdist_args):
             ),
         ],
     )
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
     result = testdir.runpytest_subprocess("--mypy-ignore-missing-imports", *xdist_args)
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_mypy_config_file(testdir, xdist_args):
@@ -181,7 +183,7 @@ def test_mypy_config_file(testdir, xdist_args):
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
     mypy_config_file = testdir.makeini(
         """
             [mypy]
@@ -210,10 +212,10 @@ def test_mypy_marker(testdir, xdist_args):
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(failed=test_count, passed=mypy_checks)
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
     result = testdir.runpytest_subprocess("--mypy", "-m", "mypy", *xdist_args)
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_non_mypy_error(testdir, xdist_args):
@@ -235,6 +237,7 @@ def test_non_mypy_error(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
+    assert result.ret == pytest.ExitCode.NO_TESTS_COLLECTED
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1  # conftest.py
     mypy_status_check = 1
@@ -243,7 +246,7 @@ def test_non_mypy_error(testdir, xdist_args):
         passed=mypy_status_check,  # conftest.py has no type errors.
     )
     result.stdout.fnmatch_lines(["*" + message])
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 def test_mypy_stderr(testdir, xdist_args):
@@ -294,7 +297,7 @@ def test_api_mypy_argv(testdir, xdist_args):
         """,
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 def test_api_nodeid_name(testdir, xdist_args):
@@ -311,7 +314,7 @@ def test_api_nodeid_name(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess("--mypy", "--verbose", *xdist_args)
     result.stdout.fnmatch_lines(["*conftest.py::" + nodeid_name + "*"])
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
 
 
 @pytest.mark.xfail(
@@ -352,7 +355,7 @@ def test_mypy_indirect(testdir, xdist_args, module_name):
     mypy_file_checks = 1
     mypy_status_check = 1
     result.assert_outcomes(passed=mypy_file_checks, failed=mypy_status_check)
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 def test_api_error_formatter(testdir, xdist_args):
@@ -381,7 +384,7 @@ def test_api_error_formatter(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     result.stdout.fnmatch_lines(["*/bad.py:2: error: Incompatible return value*"])
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 def test_pyproject_toml(testdir, xdist_args):
@@ -401,7 +404,7 @@ def test_pyproject_toml(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     result.stdout.fnmatch_lines(["1: error: Function is missing a type annotation*"])
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 def test_setup_cfg(testdir, xdist_args):
@@ -421,7 +424,7 @@ def test_setup_cfg(testdir, xdist_args):
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     result.stdout.fnmatch_lines(["1: error: Function is missing a type annotation*"])
-    assert result.ret != 0
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
 @pytest.mark.parametrize("module_name", ["__init__", "test_demo"])
@@ -537,30 +540,6 @@ def test_looponfail(testdir, module_name):
     child.kill(signal.SIGTERM)
 
 
-def test_mypy_item_collect(testdir, xdist_args):
-    """Ensure coverage for a 3.10<=pytest<6.0 workaround."""
-    testdir.makepyfile(
-        """
-        def test_mypy_item_collect(request):
-            plugin = request.config.pluginmanager.getplugin("mypy")
-            mypy_items = [
-                item
-                for item in request.session.items
-                if isinstance(item, plugin.MypyItem)
-            ]
-            assert mypy_items
-            for mypy_item in mypy_items:
-                assert all(item is mypy_item for item in mypy_item.collect())
-        """,
-    )
-    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    test_count = 1
-    mypy_file_checks = 1
-    mypy_status_check = 1
-    result.assert_outcomes(passed=test_count + mypy_file_checks + mypy_status_check)
-    assert result.ret == 0
-
-
 def test_mypy_results_from_mypy_with_opts():
     """MypyResults.from_mypy respects passed options."""
     mypy_results = pytest_mypy.MypyResults.from_mypy([], opts=["--version"])
@@ -610,5 +589,5 @@ def test_mypy_no_output(testdir, xdist_args):
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     result.assert_outcomes(passed=mypy_checks)
-    assert result.ret == 0
+    assert result.ret == pytest.ExitCode.OK
     assert f"= {pytest_mypy.terminal_summary_title} =" not in str(result.stdout)
