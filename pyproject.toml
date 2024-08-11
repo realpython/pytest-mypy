@@ -32,7 +32,7 @@ requires-python = ">=3.7"
 dependencies = [
     "attrs>=19.0",
     "filelock>=3.0",
-    "mypy>=0.50",
+    "mypy>=1.0",
     "pytest>=4.6",
 ]
 

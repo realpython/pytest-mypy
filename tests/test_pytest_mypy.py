@@ -122,29 +122,6 @@ def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
                 return x * y
         """,
     )
-    min_mypy_version = Version("0.990")
-    if MYPY_VERSION < min_mypy_version:
-        # mypy doesn't emit annotation-unchecked warnings until 0.990:
-        fake_mypy_path = tmp_path / "mypy"
-        fake_mypy_path.mkdir()
-        (fake_mypy_path / "__init__.py").touch()
-        (fake_mypy_path / "api.py").write_text(
-            textwrap.dedent(
-                """
-                    def run(*args, **kwargs):
-                        return (
-                            "test_mypy_annotation_unchecked.py:2:"
-                            " note: By default the bodies of untyped functions"
-                            " are not checked, consider using --check-untyped-defs"
-                            "  [annotation-unchecked]\\nSuccess: no issues found in"
-                            " 1 source file\\n",
-                            "",
-                            0,
-                        )
-                """
-            )
-        )
-        monkeypatch.setenv("PYTHONPATH", str(tmp_path))
     result = testdir.runpytest_subprocess(*xdist_args)
     result.assert_outcomes()
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
@@ -153,9 +130,7 @@ def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
     mypy_checks = mypy_file_checks + mypy_status_check
     outcomes = {"passed": mypy_checks}
     result.assert_outcomes(**outcomes)
-    # mypy doesn't emit annotation-unchecked warnings until 0.990:
-    if MYPY_VERSION >= Version("0.990"):
-        result.stdout.fnmatch_lines(["*MypyWarning*"])
+    result.stdout.fnmatch_lines(["*MypyWarning*"])
     assert result.ret == 0
 
 
@@ -409,10 +384,6 @@ def test_api_error_formatter(testdir, xdist_args):
     assert result.ret != 0
 
 
-@pytest.mark.xfail(
-    Version("0.900") > MYPY_VERSION,
-    reason="Mypy added pyproject.toml configuration in 0.900.",
-)
 def test_pyproject_toml(testdir, xdist_args):
     """Ensure that the plugin allows configuration with pyproject.toml."""
     testdir.makefile(
@@ -590,11 +561,6 @@ def test_mypy_item_collect(testdir, xdist_args):
     assert result.ret == 0
 
 
-@pytest.mark.xfail(
-    MYPY_VERSION < Version("0.750"),
-    raises=AssertionError,
-    reason="https://github.com/python/mypy/issues/7800",
-)
 def test_mypy_results_from_mypy_with_opts():
     """MypyResults.from_mypy respects passed options."""
     mypy_results = pytest_mypy.MypyResults.from_mypy([], opts=["--version"])
@@ -603,12 +569,6 @@ def test_mypy_results_from_mypy_with_opts():
     assert str(MYPY_VERSION) in mypy_results.stdout
 
 
-@pytest.mark.xfail(
-    Version("3.7") < PYTHON_VERSION < Version("3.9")
-    and Version("0.710") <= MYPY_VERSION < Version("0.720"),
-    raises=AssertionError,
-    reason="Mypy crashes for some reason.",
-)
 def test_mypy_no_output(testdir, xdist_args):
     """No terminal summary is shown if there is no output from mypy."""
     type_ignore = (
@@ -616,7 +576,6 @@ def test_mypy_no_output(testdir, xdist_args):
         if (
             PYTEST_VERSION
             < Version("6.0")  # Pytest didn't add type annotations until 6.0.
-            or MYPY_VERSION < Version("0.710")
         )
         else ""
     )
