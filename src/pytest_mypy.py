@@ -295,8 +295,7 @@ class MypyWarning(pytest.PytestWarning):
 def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
     if not _is_xdist_controller(config):
-        # This isn't hit in pytest 5.0 for some reason.
-        return  # pragma: no cover
+        return
     try:
         with open(config._mypy_results_path, mode="r") as results_f:
             results = MypyResults.load(results_f)
