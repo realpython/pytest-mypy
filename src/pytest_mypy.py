@@ -59,28 +59,18 @@ def pytest_addoption(parser):
     )
 
 
-XDIST_WORKERINPUT_ATTRIBUTE_NAMES = (
-    "workerinput",
-    # xdist < 2.0.0:
-    "slaveinput",
-)
+def _xdist_worker(config):
+    try:
+        return {"input": _xdist_workerinput(config)}
+    except AttributeError:
+        return {}
 
 
-def _get_xdist_workerinput(config_node):
-    workerinput = None
-    for attr_name in XDIST_WORKERINPUT_ATTRIBUTE_NAMES:
-        workerinput = getattr(config_node, attr_name, None)
-        if workerinput is not None:
-            break
-    return workerinput
-
-
-def _is_xdist_controller(config):
-    """
-    True if the code running the given pytest.config object is running in
-    an xdist controller node or not running xdist at all.
-    """
-    return _get_xdist_workerinput(config) is None
+def _xdist_workerinput(node):
+    try:
+        return node.workerinput
+    except AttributeError:  # compat xdist < 2.0
+        return node.slaveinput
 
 
 class MypyXdistControllerPlugin:
@@ -88,9 +78,9 @@ class MypyXdistControllerPlugin:
 
     def pytest_configure_node(self, node):
         """Pass the config stash to workers."""
-        _get_xdist_workerinput(node)["mypy_config_stash_serialized"] = (
-            node.config.stash[stash_key["config"]].serialized()
-        )
+        _xdist_workerinput(node)["mypy_config_stash_serialized"] = node.config.stash[
+            stash_key["config"]
+        ].serialized()
 
 
 def pytest_configure(config):
@@ -99,7 +89,7 @@ def pytest_configure(config):
     register a custom marker for MypyItems,
     and configure the plugin based on the CLI.
     """
-    if _is_xdist_controller(config):
+    if not _xdist_worker(config):
         config.pluginmanager.register(MypyReportingPlugin())
 
         # Get the path to a temporary file and delete it.
@@ -281,11 +271,12 @@ class MypyResults:
     @classmethod
     def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
-        if _is_xdist_controller(session.config):
+        xdist_worker = _xdist_worker(session.config)
+        if not xdist_worker:
             mypy_config_stash = session.config.stash[stash_key["config"]]
         else:
             mypy_config_stash = MypyConfigStash.from_serialized(
-                _get_xdist_workerinput(session.config)["mypy_config_stash_serialized"]
+                xdist_worker["input"]["mypy_config_stash_serialized"]
             )
         mypy_results_path = mypy_config_stash.mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
