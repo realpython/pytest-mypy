@@ -4,14 +4,12 @@ import textwrap
 
 import mypy.version
 from packaging.version import Version
-import pexpect
 import pytest
 
 import pytest_mypy
 
 
 MYPY_VERSION = Version(mypy.version.__version__)
-PYTEST_VERSION = Version(pytest.__version__)
 PYTHON_VERSION = Version(
     ".".join(
         str(token)
@@ -325,14 +323,7 @@ def test_api_nodeid_name(testdir, xdist_args):
 @pytest.mark.parametrize(
     "module_name",
     [
-        pytest.param(
-            "__init__",
-            marks=pytest.mark.xfail(
-                Version("3.10") <= PYTEST_VERSION < Version("6.2"),
-                raises=AssertionError,
-                reason="https://github.com/pytest-dev/pytest/issues/8016",
-            ),
-        ),
+        "__init__",
         "good",
     ],
 )
@@ -464,14 +455,6 @@ def test_looponfail(testdir, module_name):
         expect_timeout=60.0,
     )
 
-    num_tests = 2
-    if module_name == "__init__" and Version("3.10") <= PYTEST_VERSION < Version("6.2"):
-        # https://github.com/pytest-dev/pytest/issues/8016
-        # Pytest had a bug where it assumed only a Package would have a basename of
-        # __init__.py. In this test, Pytest mistakes MypyFile for a Package and
-        # returns after collecting only one object (the MypyFileItem).
-        num_tests = 1
-
     def _expect_session():
         child.expect("==== test session starts ====")
 
@@ -480,11 +463,9 @@ def test_looponfail(testdir, module_name):
         child.expect("==== FAILURES ====")
         child.expect(pyfile.basename + " ____")
         child.expect("2: error: Incompatible return value")
-        # if num_tests == 2:
-        #     # These only show with mypy>=0.730:
-        #     child.expect("==== mypy ====")
-        #     child.expect("Found 1 error in 1 file (checked 1 source file)")
-        child.expect(str(num_tests) + " failed")
+        child.expect("==== mypy ====")
+        child.expect("Found 1 error in 1 file (checked 1 source file)")
+        child.expect("2 failed")
         child.expect("#### LOOPONFAILING ####")
         _expect_waiting()
 
@@ -503,29 +484,9 @@ def test_looponfail(testdir, module_name):
     def _expect_success():
         for _ in range(2):
             _expect_session()
-            # if num_tests == 2:
-            #     # These only show with mypy>=0.730:
-            #     child.expect("==== mypy ====")
-            #     child.expect("Success: no issues found in 1 source file")
-            try:
-                child.expect(str(num_tests) + " passed")
-            except pexpect.exceptions.TIMEOUT:
-                if module_name == "__init__" and (
-                    Version("6.0") <= PYTEST_VERSION < Version("6.2")
-                ):
-                    # MypyItems hit the __init__.py bug too when --looponfail
-                    # re-collects them after the failing file is modified.
-                    # Unlike MypyFile, MypyItem is not a Collector, so this used
-                    # to cause an AttributeError until a workaround was added
-                    # (MypyItem.collect was defined to yield itself).
-                    # Mypy probably noticed the __init__.py problem during the
-                    # development of Pytest 6.0, but the error was addressed
-                    # with an isinstance assertion, which broke the workaround.
-                    # Here, we hit that assertion:
-                    child.expect("AssertionError")
-                    child.expect("1 error")
-                    pytest.xfail("https://github.com/pytest-dev/pytest/issues/8016")
-                raise
+            child.expect("==== mypy ====")
+            child.expect("Success: no issues found in 1 source file")
+            child.expect("2 passed")
         _expect_waiting()
 
     def _break():
@@ -550,35 +511,29 @@ def test_mypy_results_from_mypy_with_opts():
 
 def test_mypy_no_output(testdir, xdist_args):
     """No terminal summary is shown if there is no output from mypy."""
-    type_ignore = (
-        "# type: ignore"
-        if (
-            PYTEST_VERSION
-            < Version("6.0")  # Pytest didn't add type annotations until 6.0.
-        )
-        else ""
-    )
     testdir.makepyfile(
         # Mypy prints a success message to stderr by default:
         # "Success: no issues found in 1 source file"
         # Clear stderr and unmatched_stdout to simulate mypy having no output:
-        conftest=f"""
-            import pytest  {type_ignore}
+        conftest="""
+            import pytest
 
             @pytest.hookimpl(hookwrapper=True)
             def pytest_terminal_summary(config):
-                mypy_results_path = getattr(config, "_mypy_results_path", None)
-                if not mypy_results_path:
+                pytest_mypy = config.pluginmanager.getplugin("mypy")
+                stash_key = pytest_mypy.stash_keys["mypy_results_path"]
+                try:
+                    mypy_results_path = config.stash[stash_key]
+                except KeyError:
                     # xdist worker
                     return
-                pytest_mypy = config.pluginmanager.getplugin("mypy")
                 with open(mypy_results_path, mode="w") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
                         stdout="",
                         stderr="",
                         status=0,
-                        abspath_errors={{}},
+                        abspath_errors={},
                         unmatched_stdout="",
                     ).dump(results_f)
                 yield

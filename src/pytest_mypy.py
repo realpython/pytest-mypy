@@ -14,6 +14,9 @@ import pytest
 
 mypy_argv = []
 nodeid_name = "mypy"
+stash_keys = {
+    "mypy_results_path": pytest.StashKey[Path](),
+}
 terminal_summary_title = "mypy"
 
 
@@ -80,7 +83,7 @@ def pytest_configure(config):
         # Subsequent MypyItems will see the file exists,
         # and they will read the parsed results.
         with NamedTemporaryFile(delete=True) as tmp_f:
-            config._mypy_results_path = tmp_f.name
+            config.stash[stash_keys["mypy_results_path"]] = Path(tmp_f.name)
 
         # If xdist is enabled, then the results path should be exposed to
         # the workers so that they know where to read parsed results from.
@@ -88,10 +91,10 @@ def pytest_configure(config):
 
             class _MypyXdistPlugin:
                 def pytest_configure_node(self, node):  # xdist hook
-                    """Pass config._mypy_results_path to workers."""
-                    _get_xdist_workerinput(node)[
-                        "_mypy_results_path"
-                    ] = node.config._mypy_results_path
+                    """Pass the mypy results path to workers."""
+                    _get_xdist_workerinput(node)["_mypy_results_path"] = str(
+                        node.config.stash[stash_keys["mypy_results_path"]]
+                    )
 
             config.pluginmanager.register(_MypyXdistPlugin())
 
@@ -259,14 +262,14 @@ class MypyResults:
     @classmethod
     def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
-        results_path = (
-            session.config._mypy_results_path
+        mypy_results_path = Path(
+            session.config.stash[stash_keys["mypy_results_path"]]
             if _is_xdist_controller(session.config)
             else _get_xdist_workerinput(session.config)["_mypy_results_path"]
         )
-        with FileLock(results_path + ".lock"):
+        with FileLock(str(mypy_results_path) + ".lock"):
             try:
-                with open(results_path, mode="r") as results_f:
+                with open(mypy_results_path, mode="r") as results_f:
                     results = cls.load(results_f)
             except FileNotFoundError:
                 results = cls.from_mypy(
@@ -276,7 +279,7 @@ class MypyResults:
                         if isinstance(item, MypyFileItem)
                     ],
                 )
-                with open(results_path, mode="w") as results_f:
+                with open(mypy_results_path, mode="w") as results_f:
                     results.dump(results_f)
         return results
 
@@ -295,10 +298,10 @@ class MypyWarning(pytest.PytestWarning):
 def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
     if not _is_xdist_controller(config):
-        # This isn't hit in pytest 5.0 for some reason.
-        return  # pragma: no cover
+        return
+    mypy_results_path = config.stash[stash_keys["mypy_results_path"]]
     try:
-        with open(config._mypy_results_path, mode="r") as results_f:
+        with open(mypy_results_path, mode="r") as results_f:
             results = MypyResults.load(results_f)
     except FileNotFoundError:
         # No MypyItems executed.
@@ -310,4 +313,4 @@ def pytest_terminal_summary(terminalreporter, config):
             terminalreporter.write_line(results.unmatched_stdout, **color)
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
-    Path(config._mypy_results_path).unlink()
+    mypy_results_path.unlink()
