@@ -540,3 +540,11 @@ def test_mypy_no_output(testdir, xdist_args):
     result.assert_outcomes(passed=mypy_checks)
     assert result.ret == pytest.ExitCode.OK
     assert f"= {pytest_mypy.terminal_summary_title} =" not in str(result.stdout)
+
+
+def test_py_typed(testdir):
+    """Mypy recognizes that pytest_mypy is typed."""
+    name = "typed"
+    testdir.makepyfile(**{name: "import pytest_mypy"})
+    result = testdir.run("mypy", f"{name}.py")
+    assert result.ret == 0
