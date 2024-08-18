@@ -1,12 +1,12 @@
 """Mypy static type checker plugin for Pytest"""
 
+from dataclasses import dataclass
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, TextIO
 import warnings
 
-import attr
 from filelock import FileLock  # type: ignore
 import mypy.api
 import pytest
@@ -197,18 +197,18 @@ class MypyStatusItem(MypyItem):
             raise MypyError(f"mypy exited with status {results.status}.")
 
 
-@attr.s(frozen=True, kw_only=True)
+@dataclass(frozen=True)  # compat python < 3.10 (kw_only=True)
 class MypyResults:
     """Parsed results from Mypy."""
 
     _abspath_errors_type = Dict[str, List[str]]
 
-    opts = attr.ib(type=List[str])
-    stdout = attr.ib(type=str)
-    stderr = attr.ib(type=str)
-    status = attr.ib(type=int)
-    abspath_errors = attr.ib(type=_abspath_errors_type)
-    unmatched_stdout = attr.ib(type=str)
+    opts: List[str]
+    stdout: str
+    stderr: str
+    status: int
+    abspath_errors: _abspath_errors_type
+    unmatched_stdout: str
 
     def dump(self, results_f: TextIO) -> None:
         """Cache results in a format that can be parsed by load()."""
