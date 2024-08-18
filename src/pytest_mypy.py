@@ -12,10 +12,24 @@ import mypy.api
 import pytest
 
 
+@dataclass(frozen=True)  # compat python < 3.10 (kw_only=True)
+class MypyConfigStash:
+    """Plugin data stored in the pytest.Config stash."""
+
+    mypy_results_path: Path
+
+    @classmethod
+    def from_serialized(cls, serialized):
+        return cls(mypy_results_path=Path(serialized))
+
+    def serialized(self):
+        return str(self.mypy_results_path)
+
+
 mypy_argv = []
 nodeid_name = "mypy"
-stash_keys = {
-    "mypy_results_path": pytest.StashKey[Path](),
+stash_key = {
+    "config": pytest.StashKey[MypyConfigStash](),
 }
 terminal_summary_title = "mypy"
 
@@ -83,7 +97,9 @@ def pytest_configure(config):
         # Subsequent MypyItems will see the file exists,
         # and they will read the parsed results.
         with NamedTemporaryFile(delete=True) as tmp_f:
-            config.stash[stash_keys["mypy_results_path"]] = Path(tmp_f.name)
+            config.stash[stash_key["config"]] = MypyConfigStash(
+                mypy_results_path=Path(tmp_f.name),
+            )
 
         # If xdist is enabled, then the results path should be exposed to
         # the workers so that they know where to read parsed results from.
@@ -92,8 +108,8 @@ def pytest_configure(config):
             class _MypyXdistPlugin:
                 def pytest_configure_node(self, node):  # xdist hook
                     """Pass the mypy results path to workers."""
-                    _get_xdist_workerinput(node)["_mypy_results_path"] = str(
-                        node.config.stash[stash_keys["mypy_results_path"]]
+                    _get_xdist_workerinput(node)["mypy_config_stash_serialized"] = (
+                        node.config.stash[stash_key["config"]].serialized()
                     )
 
             config.pluginmanager.register(_MypyXdistPlugin())
@@ -262,11 +278,13 @@ class MypyResults:
     @classmethod
     def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
-        mypy_results_path = Path(
-            session.config.stash[stash_keys["mypy_results_path"]]
-            if _is_xdist_controller(session.config)
-            else _get_xdist_workerinput(session.config)["_mypy_results_path"]
-        )
+        if _is_xdist_controller(session.config):
+            mypy_config_stash = session.config.stash[stash_key["config"]]
+        else:
+            mypy_config_stash = MypyConfigStash.from_serialized(
+                _get_xdist_workerinput(session.config)["mypy_config_stash_serialized"]
+            )
+        mypy_results_path = mypy_config_stash.mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
             try:
                 with open(mypy_results_path, mode="r") as results_f:
@@ -299,7 +317,7 @@ def pytest_terminal_summary(terminalreporter, config):
     """Report stderr and unrecognized lines from stdout."""
     if not _is_xdist_controller(config):
         return
-    mypy_results_path = config.stash[stash_keys["mypy_results_path"]]
+    mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
     try:
         with open(mypy_results_path, mode="r") as results_f:
             results = MypyResults.load(results_f)
