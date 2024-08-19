@@ -90,6 +90,7 @@ def pytest_configure(config):
     and configure the plugin based on the CLI.
     """
     if _is_xdist_controller(config):
+        config.pluginmanager.register(MypyReportingPlugin())
 
         # Get the path to a temporary file and delete it.
         # The first MypyItem to run will see the file does not exist,
@@ -313,22 +314,23 @@ class MypyWarning(pytest.PytestWarning):
     """A non-failure message regarding the mypy run."""
 
 
-def pytest_terminal_summary(terminalreporter, config):
-    """Report stderr and unrecognized lines from stdout."""
-    if not _is_xdist_controller(config):
-        return
-    mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
-    try:
-        with open(mypy_results_path, mode="r") as results_f:
-            results = MypyResults.load(results_f)
-    except FileNotFoundError:
-        # No MypyItems executed.
-        return
-    if results.unmatched_stdout or results.stderr:
-        terminalreporter.section(terminal_summary_title)
-        if results.unmatched_stdout:
-            color = {"red": True} if results.status else {"green": True}
-            terminalreporter.write_line(results.unmatched_stdout, **color)
-        if results.stderr:
-            terminalreporter.write_line(results.stderr, yellow=True)
-    mypy_results_path.unlink()
+class MypyReportingPlugin:
+    """A Pytest plugin that reports mypy results."""
+
+    def pytest_terminal_summary(self, terminalreporter, config):
+        """Report stderr and unrecognized lines from stdout."""
+        mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
+        try:
+            with open(mypy_results_path, mode="r") as results_f:
+                results = MypyResults.load(results_f)
+        except FileNotFoundError:
+            # No MypyItems executed.
+            return
+        if results.unmatched_stdout or results.stderr:
+            terminalreporter.section(terminal_summary_title)
+            if results.unmatched_stdout:
+                color = {"red": True} if results.status else {"green": True}
+                terminalreporter.write_line(results.unmatched_stdout, **color)
+            if results.stderr:
+                terminalreporter.write_line(results.stderr, yellow=True)
+        mypy_results_path.unlink()
