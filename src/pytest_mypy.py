@@ -89,7 +89,8 @@ def pytest_configure(config):
     register a custom marker for MypyItems,
     and configure the plugin based on the CLI.
     """
-    if not _xdist_worker(config):
+    xdist_worker = _xdist_worker(config)
+    if not xdist_worker:
         config.pluginmanager.register(MypyReportingPlugin())
 
         # Get the path to a temporary file and delete it.
@@ -106,6 +107,11 @@ def pytest_configure(config):
         # the workers so that they know where to read parsed results from.
         if config.pluginmanager.getplugin("xdist"):
             config.pluginmanager.register(MypyXdistControllerPlugin())
+    else:
+        # xdist workers create the stash using input from the controller plugin.
+        config.stash[stash_key["config"]] = MypyConfigStash.from_serialized(
+            xdist_worker["input"]["mypy_config_stash_serialized"]
+        )
 
     config.addinivalue_line(
         "markers",
@@ -271,14 +277,7 @@ class MypyResults:
     @classmethod
     def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
-        xdist_worker = _xdist_worker(session.config)
-        if not xdist_worker:
-            mypy_config_stash = session.config.stash[stash_key["config"]]
-        else:
-            mypy_config_stash = MypyConfigStash.from_serialized(
-                xdist_worker["input"]["mypy_config_stash_serialized"]
-            )
-        mypy_results_path = mypy_config_stash.mypy_results_path
+        mypy_results_path = session.config.stash[stash_key["config"]].mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
             try:
                 with open(mypy_results_path, mode="r") as results_f:
