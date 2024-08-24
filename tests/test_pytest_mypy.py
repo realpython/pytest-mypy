@@ -521,13 +521,12 @@ def test_mypy_no_output(testdir, xdist_args):
             @pytest.hookimpl(hookwrapper=True)
             def pytest_terminal_summary(config):
                 pytest_mypy = config.pluginmanager.getplugin("mypy")
-                stash_key = pytest_mypy.stash_keys["mypy_results_path"]
                 try:
-                    mypy_results_path = config.stash[stash_key]
+                    mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
                 except KeyError:
                     # xdist worker
                     return
-                with open(mypy_results_path, mode="w") as results_f:
+                with open(mypy_config_stash.mypy_results_path, mode="w") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
                         stdout="",
