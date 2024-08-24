@@ -83,6 +83,16 @@ def _is_xdist_controller(config):
     return _get_xdist_workerinput(config) is None
 
 
+class MypyXdistControllerPlugin:
+    """A plugin that is only registered on xdist controller processes."""
+
+    def pytest_configure_node(self, node):
+        """Pass the config stash to workers."""
+        _get_xdist_workerinput(node)["mypy_config_stash_serialized"] = (
+            node.config.stash[stash_key["config"]].serialized()
+        )
+
+
 def pytest_configure(config):
     """
     Initialize the path used to cache mypy results,
@@ -105,15 +115,7 @@ def pytest_configure(config):
         # If xdist is enabled, then the results path should be exposed to
         # the workers so that they know where to read parsed results from.
         if config.pluginmanager.getplugin("xdist"):
-
-            class _MypyXdistPlugin:
-                def pytest_configure_node(self, node):  # xdist hook
-                    """Pass the mypy results path to workers."""
-                    _get_xdist_workerinput(node)["mypy_config_stash_serialized"] = (
-                        node.config.stash[stash_key["config"]].serialized()
-                    )
-
-            config.pluginmanager.register(_MypyXdistPlugin())
+            config.pluginmanager.register(MypyXdistControllerPlugin())
 
     config.addinivalue_line(
         "markers",
