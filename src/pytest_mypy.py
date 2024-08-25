@@ -59,28 +59,28 @@ def pytest_addoption(parser):
     )
 
 
-XDIST_WORKERINPUT_ATTRIBUTE_NAMES = (
-    "workerinput",
-    # xdist < 2.0.0:
-    "slaveinput",
-)
+def _xdist_worker(config):
+    try:
+        return {"input": _xdist_workerinput(config)}
+    except AttributeError:
+        return {}
 
 
-def _get_xdist_workerinput(config_node):
-    workerinput = None
-    for attr_name in XDIST_WORKERINPUT_ATTRIBUTE_NAMES:
-        workerinput = getattr(config_node, attr_name, None)
-        if workerinput is not None:
-            break
-    return workerinput
+def _xdist_workerinput(node):
+    try:
+        return node.workerinput
+    except AttributeError:  # compat xdist < 2.0
+        return node.slaveinput
 
 
-def _is_xdist_controller(config):
-    """
-    True if the code running the given pytest.config object is running in
-    an xdist controller node or not running xdist at all.
-    """
-    return _get_xdist_workerinput(config) is None
+class MypyXdistControllerPlugin:
+    """A plugin that is only registered on xdist controller processes."""
+
+    def pytest_configure_node(self, node):
+        """Pass the config stash to workers."""
+        _xdist_workerinput(node)["mypy_config_stash_serialized"] = node.config.stash[
+            stash_key["config"]
+        ].serialized()
 
 
 def pytest_configure(config):
@@ -89,7 +89,9 @@ def pytest_configure(config):
     register a custom marker for MypyItems,
     and configure the plugin based on the CLI.
     """
-    if _is_xdist_controller(config):
+    xdist_worker = _xdist_worker(config)
+    if not xdist_worker:
+        config.pluginmanager.register(MypyReportingPlugin())
 
         # Get the path to a temporary file and delete it.
         # The first MypyItem to run will see the file does not exist,
@@ -104,15 +106,12 @@ def pytest_configure(config):
         # If xdist is enabled, then the results path should be exposed to
         # the workers so that they know where to read parsed results from.
         if config.pluginmanager.getplugin("xdist"):
-
-            class _MypyXdistPlugin:
-                def pytest_configure_node(self, node):  # xdist hook
-                    """Pass the mypy results path to workers."""
-                    _get_xdist_workerinput(node)["mypy_config_stash_serialized"] = (
-                        node.config.stash[stash_key["config"]].serialized()
-                    )
-
-            config.pluginmanager.register(_MypyXdistPlugin())
+            config.pluginmanager.register(MypyXdistControllerPlugin())
+    else:
+        # xdist workers create the stash using input from the controller plugin.
+        config.stash[stash_key["config"]] = MypyConfigStash.from_serialized(
+            xdist_worker["input"]["mypy_config_stash_serialized"]
+        )
 
     config.addinivalue_line(
         "markers",
@@ -278,13 +277,7 @@ class MypyResults:
     @classmethod
     def from_session(cls, session) -> "MypyResults":
         """Load (or generate) cached mypy results for a pytest session."""
-        if _is_xdist_controller(session.config):
-            mypy_config_stash = session.config.stash[stash_key["config"]]
-        else:
-            mypy_config_stash = MypyConfigStash.from_serialized(
-                _get_xdist_workerinput(session.config)["mypy_config_stash_serialized"]
-            )
-        mypy_results_path = mypy_config_stash.mypy_results_path
+        mypy_results_path = session.config.stash[stash_key["config"]].mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
             try:
                 with open(mypy_results_path, mode="r") as results_f:
@@ -313,22 +306,23 @@ class MypyWarning(pytest.PytestWarning):
     """A non-failure message regarding the mypy run."""
 
 
-def pytest_terminal_summary(terminalreporter, config):
-    """Report stderr and unrecognized lines from stdout."""
-    if not _is_xdist_controller(config):
-        return
-    mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
-    try:
-        with open(mypy_results_path, mode="r") as results_f:
-            results = MypyResults.load(results_f)
-    except FileNotFoundError:
-        # No MypyItems executed.
-        return
-    if results.unmatched_stdout or results.stderr:
-        terminalreporter.section(terminal_summary_title)
-        if results.unmatched_stdout:
-            color = {"red": True} if results.status else {"green": True}
-            terminalreporter.write_line(results.unmatched_stdout, **color)
-        if results.stderr:
-            terminalreporter.write_line(results.stderr, yellow=True)
-    mypy_results_path.unlink()
+class MypyReportingPlugin:
+    """A Pytest plugin that reports mypy results."""
+
+    def pytest_terminal_summary(self, terminalreporter, config):
+        """Report stderr and unrecognized lines from stdout."""
+        mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
+        try:
+            with open(mypy_results_path, mode="r") as results_f:
+                results = MypyResults.load(results_f)
+        except FileNotFoundError:
+            # No MypyItems executed.
+            return
+        if results.unmatched_stdout or results.stderr:
+            terminalreporter.section(terminal_summary_title)
+            if results.unmatched_stdout:
+                color = {"red": True} if results.status else {"green": True}
+                terminalreporter.write_line(results.unmatched_stdout, **color)
+            if results.stderr:
+                terminalreporter.write_line(results.stderr, yellow=True)
+        mypy_results_path.unlink()

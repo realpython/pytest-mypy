@@ -518,14 +518,10 @@ def test_mypy_no_output(testdir, xdist_args):
         conftest="""
             import pytest
 
-            @pytest.hookimpl(hookwrapper=True)
-            def pytest_terminal_summary(config):
+            @pytest.hookimpl(trylast=True)
+            def pytest_configure(config):
                 pytest_mypy = config.pluginmanager.getplugin("mypy")
-                try:
-                    mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
-                except KeyError:
-                    # xdist worker
-                    return
+                mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
                 with open(mypy_config_stash.mypy_results_path, mode="w") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
@@ -535,7 +531,6 @@ def test_mypy_no_output(testdir, xdist_args):
                         abspath_errors={},
                         unmatched_stdout="",
                     ).dump(results_f)
-                yield
         """,
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
