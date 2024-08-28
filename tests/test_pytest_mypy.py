@@ -548,3 +548,16 @@ def test_py_typed(testdir):
     testdir.makepyfile(**{name: "import pytest_mypy"})
     result = testdir.run("mypy", f"{name}.py")
     assert result.ret == 0
+
+
+def test_mypy_no_status_check(testdir, xdist_args):
+    """Verify that --mypy-no-status-check disables MypyStatusItem collection."""
+    testdir.makepyfile(thon="one: int = 1")
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    result.assert_outcomes(passed=mypy_file_checks + mypy_status_check)
+    assert result.ret == pytest.ExitCode.OK
+    result = testdir.runpytest_subprocess("--mypy-no-status-check", *xdist_args)
+    result.assert_outcomes(passed=mypy_file_checks)
+    assert result.ret == pytest.ExitCode.OK
