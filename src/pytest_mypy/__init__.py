@@ -1,15 +1,38 @@
 """Mypy static type checker plugin for Pytest"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Optional, TextIO
+import typing
 import warnings
 
-from filelock import FileLock  # type: ignore
+from filelock import FileLock
 import mypy.api
 import pytest
+
+if typing.TYPE_CHECKING:  # pragma: no cover
+    from typing import (
+        Any,
+        Dict,
+        Iterator,
+        List,
+        Optional,
+        TextIO,
+        Tuple,
+        Union,
+    )
+
+    # https://github.com/pytest-dev/pytest/issues/7469
+    from _pytest._code.code import TerminalRepr
+
+    # https://github.com/pytest-dev/pytest/pull/12661
+    from _pytest.terminal import TerminalReporter
+
+    # https://github.com/pytest-dev/pytest-xdist/issues/1121
+    from xdist.workermanage import WorkerController  # type: ignore
 
 
 @dataclass(frozen=True)  # compat python < 3.10 (kw_only=True)
@@ -19,14 +42,14 @@ class MypyConfigStash:
     mypy_results_path: Path
 
     @classmethod
-    def from_serialized(cls, serialized):
+    def from_serialized(cls, serialized: str) -> MypyConfigStash:
         return cls(mypy_results_path=Path(serialized))
 
-    def serialized(self):
+    def serialized(self) -> str:
         return str(self.mypy_results_path)
 
 
-mypy_argv = []
+mypy_argv: List[str] = []
 nodeid_name = "mypy"
 stash_key = {
     "config": pytest.StashKey[MypyConfigStash](),
@@ -34,7 +57,11 @@ stash_key = {
 terminal_summary_title = "mypy"
 
 
-def default_file_error_formatter(item, results, errors):
+def default_file_error_formatter(
+    item: MypyItem,
+    results: MypyResults,
+    errors: List[str],
+) -> str:
     """Create a string to be displayed when mypy finds errors in a file."""
     return "\n".join(errors)
 
@@ -42,7 +69,7 @@ def default_file_error_formatter(item, results, errors):
 file_error_formatter = default_file_error_formatter
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     """Add options for enabling and running mypy."""
     group = parser.getgroup("mypy")
     group.addoption("--mypy", action="store_true", help="run mypy on .py files")
@@ -59,31 +86,33 @@ def pytest_addoption(parser):
     )
 
 
-def _xdist_worker(config):
+def _xdist_worker(config: pytest.Config) -> Dict[str, Any]:
     try:
         return {"input": _xdist_workerinput(config)}
     except AttributeError:
         return {}
 
 
-def _xdist_workerinput(node):
+def _xdist_workerinput(node: Union[WorkerController, pytest.Config]) -> Any:
     try:
-        return node.workerinput
+        # mypy complains that pytest.Config does not have this attribute,
+        # but xdist.remote defines it in worker processes.
+        return node.workerinput  # type: ignore[union-attr]
     except AttributeError:  # compat xdist < 2.0
-        return node.slaveinput
+        return node.slaveinput  # type: ignore[union-attr]
 
 
 class MypyXdistControllerPlugin:
     """A plugin that is only registered on xdist controller processes."""
 
-    def pytest_configure_node(self, node):
+    def pytest_configure_node(self, node: WorkerController) -> None:
         """Pass the config stash to workers."""
         _xdist_workerinput(node)["mypy_config_stash_serialized"] = node.config.stash[
             stash_key["config"]
         ].serialized()
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     """
     Initialize the path used to cache mypy results,
     register a custom marker for MypyItems,
@@ -125,7 +154,10 @@ def pytest_configure(config):
         mypy_argv.append(f"--config-file={mypy_config_file}")
 
 
-def pytest_collect_file(file_path, parent):
+def pytest_collect_file(
+    file_path: Path,
+    parent: pytest.Collector,
+) -> Optional[MypyFile]:
     """Create a MypyFileItem for every file mypy should run on."""
     if file_path.suffix in {".py", ".pyi"} and any(
         [
@@ -145,7 +177,7 @@ def pytest_collect_file(file_path, parent):
 class MypyFile(pytest.File):
     """A File that Mypy will run on."""
 
-    def collect(self):
+    def collect(self) -> Iterator[MypyItem]:
         """Create a MypyFileItem for the File."""
         yield MypyFileItem.from_parent(parent=self, name=nodeid_name)
         # Since mypy might check files that were not collected,
@@ -163,24 +195,28 @@ class MypyItem(pytest.Item):
 
     MARKER = "mypy"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.add_marker(self.MARKER)
 
-    def repr_failure(self, excinfo):
+    def repr_failure(
+        self,
+        excinfo: pytest.ExceptionInfo[BaseException],
+        style: Optional[str] = None,
+    ) -> Union[str, TerminalRepr]:
         """
         Unwrap mypy errors so we get a clean error message without the
         full exception repr.
         """
         if excinfo.errisinstance(MypyError):
-            return excinfo.value.args[0]
+            return str(excinfo.value.args[0])
         return super().repr_failure(excinfo)
 
 
 class MypyFileItem(MypyItem):
     """A check for Mypy errors in a File."""
 
-    def runtest(self):
+    def runtest(self) -> None:
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
         abspath = str(self.path.absolute())
@@ -193,10 +229,10 @@ class MypyFileItem(MypyItem):
                 raise MypyError(file_error_formatter(self, results, errors))
             warnings.warn("\n" + "\n".join(errors), MypyWarning)
 
-    def reportinfo(self):
+    def reportinfo(self) -> Tuple[str, None, str]:
         """Produce a heading for the test report."""
         return (
-            self.path,
+            str(self.path),
             None,
             str(self.path.relative_to(self.config.invocation_params.dir)),
         )
@@ -205,7 +241,7 @@ class MypyFileItem(MypyItem):
 class MypyStatusItem(MypyItem):
     """A check for a non-zero mypy exit status."""
 
-    def runtest(self):
+    def runtest(self) -> None:
         """Raise a MypyError if mypy exited with a non-zero status."""
         results = MypyResults.from_session(self.session)
         if results.status:
@@ -216,7 +252,7 @@ class MypyStatusItem(MypyItem):
 class MypyResults:
     """Parsed results from Mypy."""
 
-    _abspath_errors_type = Dict[str, List[str]]
+    _abspath_errors_type = typing.Dict[str, typing.List[str]]
 
     opts: List[str]
     stdout: str
@@ -230,7 +266,7 @@ class MypyResults:
         return json.dump(vars(self), results_f)
 
     @classmethod
-    def load(cls, results_f: TextIO) -> "MypyResults":
+    def load(cls, results_f: TextIO) -> MypyResults:
         """Get results cached by dump()."""
         return cls(**json.load(results_f))
 
@@ -240,7 +276,7 @@ class MypyResults:
         paths: List[Path],
         *,
         opts: Optional[List[str]] = None,
-    ) -> "MypyResults":
+    ) -> MypyResults:
         """Generate results from mypy."""
 
         if opts is None:
@@ -275,7 +311,7 @@ class MypyResults:
         )
 
     @classmethod
-    def from_session(cls, session) -> "MypyResults":
+    def from_session(cls, session: pytest.Session) -> MypyResults:
         """Load (or generate) cached mypy results for a pytest session."""
         mypy_results_path = session.config.stash[stash_key["config"]].mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
@@ -309,7 +345,11 @@ class MypyWarning(pytest.PytestWarning):
 class MypyReportingPlugin:
     """A Pytest plugin that reports mypy results."""
 
-    def pytest_terminal_summary(self, terminalreporter, config):
+    def pytest_terminal_summary(
+        self,
+        terminalreporter: TerminalReporter,
+        config: pytest.Config,
+    ) -> None:
         """Report stderr and unrecognized lines from stdout."""
         mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
         try:
