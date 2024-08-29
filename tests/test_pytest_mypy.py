@@ -561,3 +561,59 @@ def test_mypy_no_status_check(testdir, xdist_args):
     result = testdir.runpytest_subprocess("--mypy-no-status-check", *xdist_args)
     result.assert_outcomes(passed=mypy_file_checks)
     assert result.ret == pytest.ExitCode.OK
+
+
+def test_mypy_xfail_passes(testdir, xdist_args):
+    """Verify that --mypy-xfail passes passes."""
+    testdir.makepyfile(thon="one: int = 1")
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    result.assert_outcomes(passed=mypy_file_checks + mypy_status_check)
+    assert result.ret == pytest.ExitCode.OK
+    result = testdir.runpytest_subprocess("--mypy-xfail", *xdist_args)
+    result.assert_outcomes(passed=mypy_file_checks + mypy_status_check)
+    assert result.ret == pytest.ExitCode.OK
+
+
+def test_mypy_xfail_xfails(testdir, xdist_args):
+    """Verify that --mypy-xfail xfails failures."""
+    testdir.makepyfile(thon="one: str = 1")
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    result.assert_outcomes(failed=mypy_file_checks + mypy_status_check)
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    result = testdir.runpytest_subprocess("--mypy-xfail", *xdist_args)
+    result.assert_outcomes(xfailed=mypy_file_checks + mypy_status_check)
+    assert result.ret == pytest.ExitCode.OK
+
+
+def test_mypy_xfail_reports_stdout(testdir, xdist_args):
+    """Verify that --mypy-xfail reports stdout from mypy."""
+    stdout = "a distinct string on stdout"
+    testdir.makepyfile(
+        conftest=f"""
+            import pytest
+
+            @pytest.hookimpl(trylast=True)
+            def pytest_configure(config):
+                pytest_mypy = config.pluginmanager.getplugin("mypy")
+                mypy_config_stash = config.stash[pytest_mypy.stash_key["config"]]
+                with open(mypy_config_stash.mypy_results_path, mode="w") as results_f:
+                    pytest_mypy.MypyResults(
+                        opts=[],
+                        stdout="{stdout}",
+                        stderr="",
+                        status=0,
+                        abspath_errors={{}},
+                        unmatched_stdout="",
+                    ).dump(results_f)
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    assert result.ret == pytest.ExitCode.OK
+    assert stdout not in result.stdout.str()
+    result = testdir.runpytest_subprocess("--mypy-xfail", *xdist_args)
+    assert result.ret == pytest.ExitCode.OK
+    assert stdout in result.stdout.str()
