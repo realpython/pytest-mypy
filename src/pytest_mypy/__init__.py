@@ -84,6 +84,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         type=str,
         help="adds custom mypy config file",
     )
+    group.addoption(
+        "--mypy-no-status-check",
+        action="store_true",
+        help="ignore mypy's exit status",
+    )
 
 
 def _xdist_worker(config: pytest.Config) -> Dict[str, Any]:
@@ -164,6 +169,7 @@ def pytest_collect_file(
             parent.config.option.mypy,
             parent.config.option.mypy_config_file,
             parent.config.option.mypy_ignore_missing_imports,
+            parent.config.option.mypy_no_status_check,
         ],
     ):
         # Do not create MypyFile instance for a .py file if a
@@ -183,7 +189,9 @@ class MypyFile(pytest.File):
         # Since mypy might check files that were not collected,
         # pytest could pass even though mypy failed!
         # To prevent that, add an explicit check for the mypy exit status.
-        if not any(isinstance(item, MypyStatusItem) for item in self.session.items):
+        if not self.session.config.option.mypy_no_status_check and not any(
+            isinstance(item, MypyStatusItem) for item in self.session.items
+        ):
             yield MypyStatusItem.from_parent(
                 parent=self,
                 name=nodeid_name + "-status",
