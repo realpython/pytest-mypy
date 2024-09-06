@@ -397,4 +397,11 @@ class MypyControllerPlugin:
                 terminalreporter.write_line(results.unmatched_stdout, **color)
             if results.stderr:
                 terminalreporter.write_line(results.stderr, yellow=True)
-        mypy_results_path.unlink()
+
+    def pytest_unconfigure(self, config: pytest.Config) -> None:
+        """Clean up the mypy results path."""
+        try:
+            config.stash[stash_key["config"]].mypy_results_path.unlink()
+        except FileNotFoundError:  # compat python < 3.8 (missing_ok=True)
+            # No MypyItems executed.
+            return
