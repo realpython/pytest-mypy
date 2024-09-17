@@ -89,6 +89,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store_true",
         help="ignore mypy's exit status",
     )
+    group.addoption(
+        "--mypy-xfail",
+        action="store_true",
+        help="xfail mypy errors",
+    )
 
 
 def _xdist_worker(config: pytest.Config) -> Dict[str, Any]:
@@ -170,6 +175,7 @@ def pytest_collect_file(
             parent.config.option.mypy_config_file,
             parent.config.option.mypy_ignore_missing_imports,
             parent.config.option.mypy_no_status_check,
+            parent.config.option.mypy_xfail,
         ],
     ):
         # Do not create MypyFile instance for a .py file if a
@@ -234,6 +240,13 @@ class MypyFileItem(MypyItem):
                 error.partition(":")[2].partition(":")[0].strip() == "note"
                 for error in errors
             ):
+                if self.session.config.option.mypy_xfail:
+                    self.add_marker(
+                        pytest.mark.xfail(
+                            raises=MypyError,
+                            reason="mypy errors are expected by --mypy-xfail.",
+                        )
+                    )
                 raise MypyError(file_error_formatter(self, results, errors))
             warnings.warn("\n" + "\n".join(errors), MypyWarning)
 
@@ -253,6 +266,15 @@ class MypyStatusItem(MypyItem):
         """Raise a MypyError if mypy exited with a non-zero status."""
         results = MypyResults.from_session(self.session)
         if results.status:
+            if self.session.config.option.mypy_xfail:
+                self.add_marker(
+                    pytest.mark.xfail(
+                        raises=MypyError,
+                        reason=(
+                            "A non-zero mypy exit status is expected by --mypy-xfail."
+                        ),
+                    )
+                )
             raise MypyError(f"mypy exited with status {results.status}.")
 
 
@@ -366,9 +388,11 @@ class MypyReportingPlugin:
         except FileNotFoundError:
             # No MypyItems executed.
             return
-        if results.unmatched_stdout or results.stderr:
+        if config.option.mypy_xfail or results.unmatched_stdout or results.stderr:
             terminalreporter.section(terminal_summary_title)
-            if results.unmatched_stdout:
+            if config.option.mypy_xfail:
+                terminalreporter.write(results.stdout)
+            elif results.unmatched_stdout:
                 color = {"red": True} if results.status else {"green": True}
                 terminalreporter.write_line(results.unmatched_stdout, **color)
             if results.stderr:
