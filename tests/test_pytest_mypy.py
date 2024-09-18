@@ -130,7 +130,9 @@ def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
     mypy_checks = mypy_file_checks + mypy_status_check
     outcomes = {"passed": mypy_checks}
     result.assert_outcomes(**outcomes)
-    result.stdout.fnmatch_lines(["*MypyWarning*"])
+    result.stdout.fnmatch_lines(
+        ["*:2: note: By default the bodies of untyped functions are not checked*"]
+    )
     assert result.ret == pytest.ExitCode.OK
 
 

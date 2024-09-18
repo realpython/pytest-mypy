@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import typing
-import warnings
 
 from filelock import FileLock
 import mypy.api
@@ -227,6 +226,14 @@ class MypyItem(pytest.Item):
         return super().repr_failure(excinfo)
 
 
+def _error_severity(error: str) -> str:
+    components = [component.strip() for component in error.split(":")]
+    # The second component is either the line or the severity:
+    # demo/note.py:2: note: By default the bodies of untyped functions are not checked
+    # demo/sub/conftest.py: error: Duplicate module named "conftest"
+    return components[2] if components[1].isdigit() else components[1]
+
+
 class MypyFileItem(MypyItem):
     """A check for Mypy errors in a File."""
 
@@ -238,20 +245,15 @@ class MypyFileItem(MypyItem):
             error.partition(":")[2].strip()
             for error in results.abspath_errors.get(abspath, [])
         ]
-        if errors:
-            if not all(
-                error.partition(":")[2].partition(":")[0].strip() == "note"
-                for error in errors
-            ):
-                if self.session.config.option.mypy_xfail:
-                    self.add_marker(
-                        pytest.mark.xfail(
-                            raises=MypyError,
-                            reason="mypy errors are expected by --mypy-xfail.",
-                        )
+        if errors and not all(_error_severity(error) == "note" for error in errors):
+            if self.session.config.option.mypy_xfail:
+                self.add_marker(
+                    pytest.mark.xfail(
+                        raises=MypyError,
+                        reason="mypy errors are expected by --mypy-xfail.",
                     )
-                raise MypyError(file_error_formatter(self, results, errors))
-            warnings.warn("\n" + "\n".join(errors), MypyWarning)
+                )
+            raise MypyError(file_error_formatter(self, results, errors))
 
     def reportinfo(self) -> Tuple[str, None, str]:
         """Produce a heading for the test report."""
@@ -371,10 +373,6 @@ class MypyError(Exception):
     """
 
 
-class MypyWarning(pytest.PytestWarning):
-    """A non-failure message regarding the mypy run."""
-
-
 class MypyControllerPlugin:
     """A plugin that is not registered on xdist worker processes."""
 
@@ -397,9 +395,17 @@ class MypyControllerPlugin:
         if results.stdout:
             if config.option.mypy_xfail:
                 terminalreporter.write(results.stdout)
-            elif results.unmatched_stdout:
-                color = {"red": True} if results.status else {"green": True}
-                terminalreporter.write_line(results.unmatched_stdout, **color)
+            else:
+                for note in (
+                    unreported_note
+                    for errors in results.abspath_errors.values()
+                    if all(_error_severity(error) == "note" for error in errors)
+                    for unreported_note in errors
+                ):
+                    terminalreporter.write_line(note)
+                if results.unmatched_stdout:
+                    color = {"red": True} if results.status else {"green": True}
+                    terminalreporter.write_line(results.unmatched_stdout, **color)
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
 
