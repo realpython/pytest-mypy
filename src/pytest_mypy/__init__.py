@@ -130,7 +130,7 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     xdist_worker = _xdist_worker(config)
     if not xdist_worker:
-        config.pluginmanager.register(MypyReportingPlugin())
+        config.pluginmanager.register(MypyControllerPlugin())
 
         # Get the path to a temporary file and delete it.
         # The first MypyItem to run will see the file does not exist,
@@ -372,15 +372,15 @@ class MypyWarning(pytest.PytestWarning):
     """A non-failure message regarding the mypy run."""
 
 
-class MypyReportingPlugin:
-    """A Pytest plugin that reports mypy results."""
+class MypyControllerPlugin:
+    """A plugin that is not registered on xdist worker processes."""
 
     def pytest_terminal_summary(
         self,
         terminalreporter: TerminalReporter,
         config: pytest.Config,
     ) -> None:
-        """Report stderr and unrecognized lines from stdout."""
+        """Report mypy results."""
         mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
         try:
             with open(mypy_results_path, mode="r") as results_f:
@@ -397,4 +397,11 @@ class MypyReportingPlugin:
                 terminalreporter.write_line(results.unmatched_stdout, **color)
             if results.stderr:
                 terminalreporter.write_line(results.stderr, yellow=True)
-        mypy_results_path.unlink()
+
+    def pytest_unconfigure(self, config: pytest.Config) -> None:
+        """Clean up the mypy results path."""
+        try:
+            config.stash[stash_key["config"]].mypy_results_path.unlink()
+        except FileNotFoundError:  # compat python < 3.8 (missing_ok=True)
+            # No MypyItems executed.
+            return
