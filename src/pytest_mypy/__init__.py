@@ -391,15 +391,17 @@ class MypyControllerPlugin:
         except FileNotFoundError:
             # No MypyItems executed.
             return
-        if config.option.mypy_xfail or results.unmatched_stdout or results.stderr:
-            terminalreporter.section(terminal_summary_title)
+        if not results.stdout and not results.stderr:
+            return
+        terminalreporter.section(terminal_summary_title)
+        if results.stdout:
             if config.option.mypy_xfail:
                 terminalreporter.write(results.stdout)
             elif results.unmatched_stdout:
                 color = {"red": True} if results.status else {"green": True}
                 terminalreporter.write_line(results.unmatched_stdout, **color)
-            if results.stderr:
-                terminalreporter.write_line(results.stderr, yellow=True)
+        if results.stderr:
+            terminalreporter.write_line(results.stderr, yellow=True)
 
     def pytest_unconfigure(self, config: pytest.Config) -> None:
         """Clean up the mypy results path."""
