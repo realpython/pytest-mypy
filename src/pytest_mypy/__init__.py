@@ -233,7 +233,7 @@ class MypyFileItem(MypyItem):
     def runtest(self) -> None:
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
-        abspath = str(self.path.absolute())
+        abspath = str(self.path.resolve())
         errors = results.abspath_errors.get(abspath)
         if errors:
             if not all(
@@ -312,7 +312,7 @@ class MypyResults:
         if opts is None:
             opts = mypy_argv[:]
         abspath_errors = {
-            str(path.absolute()): [] for path in paths
+            str(path.resolve()): [] for path in paths
         }  # type: MypyResults._abspath_errors_type
 
         cwd = Path.cwd()
@@ -325,7 +325,7 @@ class MypyResults:
             if not line:
                 continue
             path, _, error = line.partition(":")
-            abspath = str(Path(path).absolute())
+            abspath = str(Path(path).resolve())
             try:
                 abspath_errors[abspath].append(error)
             except KeyError:
