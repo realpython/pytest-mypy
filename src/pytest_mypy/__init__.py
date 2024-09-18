@@ -234,7 +234,10 @@ class MypyFileItem(MypyItem):
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
         abspath = str(self.path.resolve())
-        errors = results.abspath_errors.get(abspath)
+        errors = [
+            error.partition(":")[2].strip()
+            for error in results.abspath_errors.get(abspath, [])
+        ]
         if errors:
             if not all(
                 error.partition(":")[2].partition(":")[0].strip() == "note"
@@ -327,7 +330,7 @@ class MypyResults:
             path, _, error = line.partition(":")
             abspath = str(Path(path).resolve())
             try:
-                abspath_errors[abspath].append(error)
+                abspath_errors[abspath].append(line)
             except KeyError:
                 unmatched_lines.append(line)
 
