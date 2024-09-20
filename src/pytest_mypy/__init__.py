@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import typing
-import warnings
 
 from filelock import FileLock
 import mypy.api
@@ -227,28 +226,34 @@ class MypyItem(pytest.Item):
         return super().repr_failure(excinfo)
 
 
+def _error_severity(error: str) -> str:
+    components = [component.strip() for component in error.split(":")]
+    # The second component is either the line or the severity:
+    # demo/note.py:2: note: By default the bodies of untyped functions are not checked
+    # demo/sub/conftest.py: error: Duplicate module named "conftest"
+    return components[2] if components[1].isdigit() else components[1]
+
+
 class MypyFileItem(MypyItem):
     """A check for Mypy errors in a File."""
 
     def runtest(self) -> None:
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
-        abspath = str(self.path.absolute())
-        errors = results.abspath_errors.get(abspath)
-        if errors:
-            if not all(
-                error.partition(":")[2].partition(":")[0].strip() == "note"
-                for error in errors
-            ):
-                if self.session.config.option.mypy_xfail:
-                    self.add_marker(
-                        pytest.mark.xfail(
-                            raises=MypyError,
-                            reason="mypy errors are expected by --mypy-xfail.",
-                        )
+        abspath = str(self.path.resolve())
+        errors = [
+            error.partition(":")[2].strip()
+            for error in results.abspath_errors.get(abspath, [])
+        ]
+        if errors and not all(_error_severity(error) == "note" for error in errors):
+            if self.session.config.option.mypy_xfail:
+                self.add_marker(
+                    pytest.mark.xfail(
+                        raises=MypyError,
+                        reason="mypy errors are expected by --mypy-xfail.",
                     )
-                raise MypyError(file_error_formatter(self, results, errors))
-            warnings.warn("\n" + "\n".join(errors), MypyWarning)
+                )
+            raise MypyError(file_error_formatter(self, results, errors))
 
     def reportinfo(self) -> Tuple[str, None, str]:
         """Produce a heading for the test report."""
@@ -312,7 +317,7 @@ class MypyResults:
         if opts is None:
             opts = mypy_argv[:]
         abspath_errors = {
-            str(path.absolute()): [] for path in paths
+            str(path.resolve()): [] for path in paths
         }  # type: MypyResults._abspath_errors_type
 
         cwd = Path.cwd()
@@ -325,9 +330,9 @@ class MypyResults:
             if not line:
                 continue
             path, _, error = line.partition(":")
-            abspath = str(Path(path).absolute())
+            abspath = str(Path(path).resolve())
             try:
-                abspath_errors[abspath].append(error)
+                abspath_errors[abspath].append(line)
             except KeyError:
                 unmatched_lines.append(line)
 
@@ -368,10 +373,6 @@ class MypyError(Exception):
     """
 
 
-class MypyWarning(pytest.PytestWarning):
-    """A non-failure message regarding the mypy run."""
-
-
 class MypyControllerPlugin:
     """A plugin that is not registered on xdist worker processes."""
 
@@ -388,15 +389,25 @@ class MypyControllerPlugin:
         except FileNotFoundError:
             # No MypyItems executed.
             return
-        if config.option.mypy_xfail or results.unmatched_stdout or results.stderr:
-            terminalreporter.section(terminal_summary_title)
+        if not results.stdout and not results.stderr:
+            return
+        terminalreporter.section(terminal_summary_title)
+        if results.stdout:
             if config.option.mypy_xfail:
                 terminalreporter.write(results.stdout)
-            elif results.unmatched_stdout:
-                color = {"red": True} if results.status else {"green": True}
-                terminalreporter.write_line(results.unmatched_stdout, **color)
-            if results.stderr:
-                terminalreporter.write_line(results.stderr, yellow=True)
+            else:
+                for note in (
+                    unreported_note
+                    for errors in results.abspath_errors.values()
+                    if all(_error_severity(error) == "note" for error in errors)
+                    for unreported_note in errors
+                ):
+                    terminalreporter.write_line(note)
+                if results.unmatched_stdout:
+                    color = {"red": True} if results.status else {"green": True}
+                    terminalreporter.write_line(results.unmatched_stdout, **color)
+        if results.stderr:
+            terminalreporter.write_line(results.stderr, yellow=True)
 
     def pytest_unconfigure(self, config: pytest.Config) -> None:
         """Clean up the mypy results path."""

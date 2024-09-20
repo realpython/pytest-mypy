@@ -130,7 +130,9 @@ def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
     mypy_checks = mypy_file_checks + mypy_status_check
     outcomes = {"passed": mypy_checks}
     result.assert_outcomes(**outcomes)
-    result.stdout.fnmatch_lines(["*MypyWarning*"])
+    result.stdout.fnmatch_lines(
+        ["*:2: note: By default the bodies of untyped functions are not checked*"]
+    )
     assert result.ret == pytest.ExitCode.OK
 
 
@@ -552,7 +554,7 @@ def test_py_typed(testdir):
 
 def test_mypy_no_status_check(testdir, xdist_args):
     """Verify that --mypy-no-status-check disables MypyStatusItem collection."""
-    testdir.makepyfile(thon="one: int = 1")
+    testdir.makepyfile("one: int = 1")
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1
     mypy_status_check = 1
@@ -565,7 +567,7 @@ def test_mypy_no_status_check(testdir, xdist_args):
 
 def test_mypy_xfail_passes(testdir, xdist_args):
     """Verify that --mypy-xfail passes passes."""
-    testdir.makepyfile(thon="one: int = 1")
+    testdir.makepyfile("one: int = 1")
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1
     mypy_status_check = 1
@@ -578,7 +580,7 @@ def test_mypy_xfail_passes(testdir, xdist_args):
 
 def test_mypy_xfail_xfails(testdir, xdist_args):
     """Verify that --mypy-xfail xfails failures."""
-    testdir.makepyfile(thon="one: str = 1")
+    testdir.makepyfile("one: str = 1")
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
     mypy_file_checks = 1
     mypy_status_check = 1
