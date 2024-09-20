@@ -48,6 +48,7 @@ class MypyConfigStash:
         return str(self.mypy_results_path)
 
 
+item_marker = "mypy"
 mypy_argv: List[str] = []
 nodeid_name = "mypy"
 stash_key = {
@@ -153,7 +154,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     config.addinivalue_line(
         "markers",
-        f"{MypyItem.MARKER}: mark tests to be checked by mypy.",
+        f"{item_marker}: mark tests to be checked by mypy.",
     )
     if config.getoption("--mypy-ignore-missing-imports"):
         mypy_argv.append("--ignore-missing-imports")
@@ -206,11 +207,9 @@ class MypyFile(pytest.File):
 class MypyItem(pytest.Item):
     """A Mypy-related test Item."""
 
-    MARKER = "mypy"
-
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.add_marker(self.MARKER)
+        self.add_marker(item_marker)
 
     def repr_failure(
         self,
