@@ -163,27 +163,37 @@ def pytest_configure(config: pytest.Config) -> None:
     if mypy_config_file:
         mypy_argv.append(f"--config-file={mypy_config_file}")
 
-
-def pytest_collect_file(
-    file_path: Path,
-    parent: pytest.Collector,
-) -> Optional[MypyFile]:
-    """Create a MypyFileItem for every file mypy should run on."""
-    if file_path.suffix in {".py", ".pyi"} and any(
+    if any(
         [
-            parent.config.option.mypy,
-            parent.config.option.mypy_config_file,
-            parent.config.option.mypy_ignore_missing_imports,
-            parent.config.option.mypy_no_status_check,
-            parent.config.option.mypy_xfail,
+            config.option.mypy,
+            config.option.mypy_config_file,
+            config.option.mypy_ignore_missing_imports,
+            config.option.mypy_no_status_check,
+            config.option.mypy_xfail,
         ],
     ):
-        # Do not create MypyFile instance for a .py file if a
-        # .pyi file with the same name already exists;
-        # pytest will complain about duplicate modules otherwise
-        if file_path.suffix == ".pyi" or not file_path.with_suffix(".pyi").is_file():
-            return MypyFile.from_parent(parent=parent, path=file_path)
-    return None
+        config.pluginmanager.register(MypyCollectionPlugin())
+
+
+class MypyCollectionPlugin:
+    """A Pytest plugin that collects MypyFiles."""
+
+    def pytest_collect_file(
+        self,
+        file_path: Path,
+        parent: pytest.Collector,
+    ) -> Optional[MypyFile]:
+        """Create a MypyFileItem for every file mypy should run on."""
+        if file_path.suffix in {".py", ".pyi"}:
+            # Do not create MypyFile instance for a .py file if a
+            # .pyi file with the same name already exists;
+            # pytest will complain about duplicate modules otherwise
+            if (
+                file_path.suffix == ".pyi"
+                or not file_path.with_suffix(".pyi").is_file()
+            ):
+                return MypyFile.from_parent(parent=parent, path=file_path)
+        return None
 
 
 class MypyFile(pytest.File):
