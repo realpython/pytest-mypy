@@ -16,10 +16,10 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from typing import (
         Any,
         Dict,
+        IO,
         Iterator,
         List,
         Optional,
-        TextIO,
         Tuple,
         Union,
     )
@@ -297,6 +297,7 @@ class MypyResults:
     """Parsed results from Mypy."""
 
     _abspath_errors_type = typing.Dict[str, typing.List[str]]
+    _encoding = "utf-8"
 
     opts: List[str]
     stdout: str
@@ -305,14 +306,14 @@ class MypyResults:
     abspath_errors: _abspath_errors_type
     unmatched_stdout: str
 
-    def dump(self, results_f: TextIO) -> None:
+    def dump(self, results_f: IO[bytes]) -> None:
         """Cache results in a format that can be parsed by load()."""
-        return json.dump(vars(self), results_f)
+        results_f.write(json.dumps(vars(self)).encode(self._encoding))
 
     @classmethod
-    def load(cls, results_f: TextIO) -> MypyResults:
+    def load(cls, results_f: IO[bytes]) -> MypyResults:
         """Get results cached by dump()."""
-        return cls(**json.load(results_f))
+        return cls(**json.loads(results_f.read().decode(cls._encoding)))
 
     @classmethod
     def from_mypy(
@@ -360,7 +361,7 @@ class MypyResults:
         mypy_results_path = session.config.stash[stash_key["config"]].mypy_results_path
         with FileLock(str(mypy_results_path) + ".lock"):
             try:
-                with open(mypy_results_path, mode="r") as results_f:
+                with open(mypy_results_path, mode="rb") as results_f:
                     results = cls.load(results_f)
             except FileNotFoundError:
                 results = cls.from_mypy(
@@ -370,7 +371,7 @@ class MypyResults:
                         if isinstance(item, MypyFileItem)
                     ],
                 )
-                with open(mypy_results_path, mode="w") as results_f:
+                with open(mypy_results_path, mode="wb") as results_f:
                     results.dump(results_f)
         return results
 
@@ -393,7 +394,7 @@ class MypyControllerPlugin:
         """Report mypy results."""
         mypy_results_path = config.stash[stash_key["config"]].mypy_results_path
         try:
-            with open(mypy_results_path, mode="r") as results_f:
+            with open(mypy_results_path, mode="rb") as results_f:
                 results = MypyResults.load(results_f)
         except FileNotFoundError:
             # No MypyItems executed.
