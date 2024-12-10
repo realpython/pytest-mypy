@@ -532,7 +532,6 @@ def test_mypy_results_from_mypy_with_opts():
     """MypyResults.from_mypy respects passed options."""
     mypy_results = pytest_mypy.MypyResults.from_mypy([], opts=["--version"])
     assert mypy_results.status == 0
-    assert mypy_results.abspath_errors == {}
     assert str(MYPY_VERSION) in mypy_results.stdout
 
 
@@ -552,11 +551,11 @@ def test_mypy_no_output(testdir, xdist_args):
                 with open(mypy_config_stash.mypy_results_path, mode="wb") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
+                        args=[],
                         stdout="",
                         stderr="",
                         status=0,
-                        abspath_errors={},
-                        unmatched_stdout="",
+                        path_lines={},
                     ).dump(results_f)
         """,
     )
@@ -630,11 +629,11 @@ def test_mypy_xfail_reports_stdout(testdir, xdist_args):
                 with open(mypy_config_stash.mypy_results_path, mode="wb") as results_f:
                     pytest_mypy.MypyResults(
                         opts=[],
+                        args=[],
                         stdout="{stdout}",
                         stderr="",
                         status=0,
-                        abspath_errors={{}},
-                        unmatched_stdout="",
+                        path_lines={{}},
                     ).dump(results_f)
         """,
     )
@@ -644,3 +643,8 @@ def test_mypy_xfail_reports_stdout(testdir, xdist_args):
     result = testdir.runpytest_subprocess("--mypy-xfail", *xdist_args)
     assert result.ret == pytest.ExitCode.OK
     assert stdout in result.stdout.str()
+
+
+def test_error_severity():
+    """Verify that non-error lines produce no severity."""
+    assert pytest_mypy._error_severity("arbitrary line with no error") is None
