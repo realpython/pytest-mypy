@@ -57,6 +57,14 @@ stash_key = {
 terminal_summary_title = "mypy"
 
 
+def default_test_name_formatter(*, item: MypyFileItem) -> str:
+    path = item.path.relative_to(item.config.invocation_params.dir)
+    return f"[{terminal_summary_title}] {path}"
+
+
+test_name_formatter = default_test_name_formatter
+
+
 def default_file_error_formatter(
     item: MypyItem,
     results: MypyResults,
@@ -268,13 +276,9 @@ class MypyFileItem(MypyItem):
                 )
             )
 
-    def reportinfo(self) -> Tuple[str, None, str]:
+    def reportinfo(self) -> Tuple[Path, None, str]:
         """Produce a heading for the test report."""
-        return (
-            str(self.path),
-            None,
-            str(self.path.relative_to(self.config.invocation_params.dir)),
-        )
+        return (self.path, None, test_name_formatter(item=self))
 
 
 class MypyStatusItem(MypyItem):
