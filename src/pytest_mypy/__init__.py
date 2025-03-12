@@ -235,8 +235,10 @@ class MypyItem(pytest.Item):
         return super().repr_failure(excinfo)
 
 
-def _error_severity(error: str) -> str:
-    components = [component.strip() for component in error.split(":")]
+def _error_severity(line: str) -> Optional[str]:
+    components = [component.strip() for component in line.split(":", 3)]
+    if len(components) < 2:
+        return None
     # The second component is either the line or the severity:
     # demo/note.py:2: note: By default the bodies of untyped functions are not checked
     # demo/sub/conftest.py: error: Duplicate module named "conftest"
@@ -249,12 +251,8 @@ class MypyFileItem(MypyItem):
     def runtest(self) -> None:
         """Raise an exception if mypy found errors for this item."""
         results = MypyResults.from_session(self.session)
-        abspath = str(self.path.resolve())
-        errors = [
-            error.partition(":")[2].strip()
-            for error in results.abspath_errors.get(abspath, [])
-        ]
-        if errors and not all(_error_severity(error) == "note" for error in errors):
+        lines = results.path_lines.get(self.path.resolve(), [])
+        if lines and not all(_error_severity(line) == "note" for line in lines):
             if self.session.config.option.mypy_xfail:
                 self.add_marker(
                     pytest.mark.xfail(
@@ -262,7 +260,13 @@ class MypyFileItem(MypyItem):
                         reason="mypy errors are expected by --mypy-xfail.",
                     )
                 )
-            raise MypyError(file_error_formatter(self, results, errors))
+            raise MypyError(
+                file_error_formatter(
+                    self,
+                    results,
+                    errors=[line.partition(":")[2].strip() for line in lines],
+                )
+            )
 
     def reportinfo(self) -> Tuple[str, None, str]:
         """Produce a heading for the test report."""
@@ -296,24 +300,32 @@ class MypyStatusItem(MypyItem):
 class MypyResults:
     """Parsed results from Mypy."""
 
-    _abspath_errors_type = typing.Dict[str, typing.List[str]]
     _encoding = "utf-8"
 
     opts: List[str]
+    args: List[str]
     stdout: str
     stderr: str
     status: int
-    abspath_errors: _abspath_errors_type
-    unmatched_stdout: str
+    path_lines: Dict[Optional[Path], List[str]]
 
     def dump(self, results_f: IO[bytes]) -> None:
         """Cache results in a format that can be parsed by load()."""
-        results_f.write(json.dumps(vars(self)).encode(self._encoding))
+        prepared = vars(self).copy()
+        prepared["path_lines"] = {
+            str(path or ""): lines for path, lines in prepared["path_lines"].items()
+        }
+        results_f.write(json.dumps(prepared).encode(self._encoding))
 
     @classmethod
     def load(cls, results_f: IO[bytes]) -> MypyResults:
         """Get results cached by dump()."""
-        return cls(**json.loads(results_f.read().decode(cls._encoding)))
+        prepared = json.loads(results_f.read().decode(cls._encoding))
+        prepared["path_lines"] = {
+            Path(path) if path else None: lines
+            for path, lines in prepared["path_lines"].items()
+        }
+        return cls(**prepared)
 
     @classmethod
     def from_mypy(
@@ -326,33 +338,31 @@ class MypyResults:
 
         if opts is None:
             opts = mypy_argv[:]
-        abspath_errors = {
-            str(path.resolve()): [] for path in paths
-        }  # type: MypyResults._abspath_errors_type
+        args = [str(path) for path in paths]
 
-        cwd = Path.cwd()
-        stdout, stderr, status = mypy.api.run(
-            opts + [str(Path(key).relative_to(cwd)) for key in abspath_errors.keys()]
-        )
+        stdout, stderr, status = mypy.api.run(opts + args)
 
-        unmatched_lines = []
+        path_lines: Dict[Optional[Path], List[str]] = {
+            path.resolve(): [] for path in paths
+        }
+        path_lines[None] = []
         for line in stdout.split("\n"):
             if not line:
                 continue
-            path, _, error = line.partition(":")
-            abspath = str(Path(path).resolve())
+            path = Path(line.partition(":")[0]).resolve()
             try:
-                abspath_errors[abspath].append(line)
+                lines = path_lines[path]
             except KeyError:
-                unmatched_lines.append(line)
+                lines = path_lines[None]
+            lines.append(line)
 
         return cls(
             opts=opts,
+            args=args,
             stdout=stdout,
             stderr=stderr,
             status=status,
-            abspath_errors=abspath_errors,
-            unmatched_stdout="\n".join(unmatched_lines),
+            path_lines=path_lines,
         )
 
     @classmethod
@@ -364,9 +374,10 @@ class MypyResults:
                 with open(mypy_results_path, mode="rb") as results_f:
                     results = cls.load(results_f)
             except FileNotFoundError:
+                cwd = Path.cwd()
                 results = cls.from_mypy(
                     [
-                        item.path
+                        item.path.relative_to(cwd)
                         for item in session.items
                         if isinstance(item, MypyFileItem)
                     ],
@@ -408,14 +419,17 @@ class MypyControllerPlugin:
             else:
                 for note in (
                     unreported_note
-                    for errors in results.abspath_errors.values()
-                    if all(_error_severity(error) == "note" for error in errors)
-                    for unreported_note in errors
+                    for path, lines in results.path_lines.items()
+                    if path is not None
+                    if all(_error_severity(line) == "note" for line in lines)
+                    for unreported_note in lines
                 ):
                     terminalreporter.write_line(note)
-                if results.unmatched_stdout:
+                if results.path_lines.get(None):
                     color = {"red": True} if results.status else {"green": True}
-                    terminalreporter.write_line(results.unmatched_stdout, **color)
+                    terminalreporter.write_line(
+                        "\n".join(results.path_lines[None]), **color
+                    )
         if results.stderr:
             terminalreporter.write_line(results.stderr, yellow=True)
 
