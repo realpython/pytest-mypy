@@ -399,24 +399,19 @@ def test_mypy_indirect(testdir, xdist_args, module_name):
     assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
-def test_api_error_formatter(testdir, xdist_args):
-    """Ensure that the plugin can be configured in a conftest.py."""
+def test_api_file_error_formatter(testdir, xdist_args):
+    """Ensure that the file_error_formatter can be replaced in a conftest.py."""
     testdir.makepyfile(
         bad="""
             def pyfunc(x: int) -> str:
                 return x * 2
         """,
     )
+    file_error = "UnmistakableFileError"
     testdir.makepyfile(
-        conftest="""
+        conftest=f"""
             def custom_file_error_formatter(item, results, errors):
-                return '\\n'.join(
-                    '{path}:{error}'.format(
-                        path=item.fspath,
-                        error=error,
-                    )
-                    for error in errors
-                )
+                return '{file_error}'
 
             def pytest_configure(config):
                 plugin = config.pluginmanager.getplugin('mypy')
@@ -424,7 +419,7 @@ def test_api_error_formatter(testdir, xdist_args):
         """,
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    result.stdout.fnmatch_lines(["*/bad.py:2: error: Incompatible return value*"])
+    result.stdout.fnmatch_lines([f"*{file_error}*"])
     assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
