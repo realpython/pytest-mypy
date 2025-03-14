@@ -342,6 +342,29 @@ def test_api_nodeid_name(testdir, xdist_args):
     assert result.ret == pytest.ExitCode.OK
 
 
+def test_api_test_name_formatter(testdir, xdist_args):
+    """Ensure that the test_name_formatter can be replaced in a conftest.py."""
+    test_name = "UnmistakableTestName"
+    testdir.makepyfile(
+        conftest=f"""
+            cause_a_mypy_error: str = 5
+
+            def custom_test_name_formatter(item):
+                return "{test_name}"
+
+            def pytest_configure(config):
+                plugin = config.pluginmanager.getplugin('mypy')
+                plugin.test_name_formatter = custom_test_name_formatter
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    result.stdout.fnmatch_lines([f"*{test_name}*"])
+    mypy_file_check = 1
+    mypy_status_check = 1
+    result.assert_outcomes(failed=mypy_file_check + mypy_status_check)
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+
+
 @pytest.mark.xfail(
     Version("0.971") <= MYPY_VERSION,
     raises=AssertionError,
