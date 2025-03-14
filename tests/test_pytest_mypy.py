@@ -410,7 +410,7 @@ def test_api_file_error_formatter(testdir, xdist_args):
     file_error = "UnmistakableFileError"
     testdir.makepyfile(
         conftest=f"""
-            def custom_file_error_formatter(item, results, errors):
+            def custom_file_error_formatter(item, results, lines):
                 return '{file_error}'
 
             def pytest_configure(config):
@@ -666,3 +666,29 @@ def test_mypy_xfail_reports_stdout(testdir, xdist_args):
 def test_error_severity():
     """Verify that non-error lines produce no severity."""
     assert pytest_mypy._error_severity("arbitrary line with no error") is None
+
+
+def test_mypy_report_style(testdir, xdist_args):
+    """Verify that --mypy-report-style functions correctly."""
+    module_name = "unmistakable_module_name"
+    testdir.makepyfile(
+        **{
+            module_name: """
+            def pyfunc(x: int) -> str:
+                return x * 2
+        """
+        },
+    )
+    result = testdir.runpytest_subprocess("--mypy-report-style", "no-path", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(failed=mypy_checks)
+    result.stdout.fnmatch_lines(["2: error: Incompatible return value*"])
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    result = testdir.runpytest_subprocess("--mypy-report-style", "mypy", *xdist_args)
+    result.assert_outcomes(failed=mypy_checks)
+    result.stdout.fnmatch_lines(
+        [f"{module_name}.py:2: error: Incompatible return value*"]
+    )
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
