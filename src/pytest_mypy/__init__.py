@@ -68,10 +68,13 @@ test_name_formatter = default_test_name_formatter
 def default_file_error_formatter(
     item: MypyItem,
     results: MypyResults,
-    errors: List[str],
+    lines: List[str],
 ) -> str:
     """Create a string to be displayed when mypy finds errors in a file."""
-    return "\n".join(errors)
+    if item.config.option.mypy_default_report_style == "mypy":
+        return "\n".join(lines)
+    # "pytest" style
+    return "\n".join(line.partition(":")[2].strip() for line in lines)
 
 
 file_error_formatter = default_file_error_formatter
@@ -91,6 +94,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         type=str,
         help="adds custom mypy config file",
+    )
+    group.addoption(
+        "--mypy-default-report-style",
+        choices=[
+            "mypy",
+            "pytest",
+        ],
+        help="change the way mypy output is reported",
     )
     group.addoption(
         "--mypy-no-status-check",
@@ -175,6 +186,7 @@ def pytest_configure(config: pytest.Config) -> None:
         [
             config.option.mypy,
             config.option.mypy_config_file,
+            config.option.mypy_default_report_style,
             config.option.mypy_ignore_missing_imports,
             config.option.mypy_no_status_check,
             config.option.mypy_xfail,
@@ -268,13 +280,7 @@ class MypyFileItem(MypyItem):
                         reason="mypy errors are expected by --mypy-xfail.",
                     )
                 )
-            raise MypyError(
-                file_error_formatter(
-                    self,
-                    results,
-                    errors=[line.partition(":")[2].strip() for line in lines],
-                )
-            )
+            raise MypyError(file_error_formatter(self, results, lines))
 
     def reportinfo(self) -> Tuple[Path, None, str]:
         """Produce a heading for the test report."""
