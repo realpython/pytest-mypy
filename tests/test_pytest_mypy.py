@@ -399,24 +399,19 @@ def test_mypy_indirect(testdir, xdist_args, module_name):
     assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
-def test_api_error_formatter(testdir, xdist_args):
-    """Ensure that the plugin can be configured in a conftest.py."""
+def test_api_file_error_formatter(testdir, xdist_args):
+    """Ensure that the file_error_formatter can be replaced in a conftest.py."""
     testdir.makepyfile(
         bad="""
             def pyfunc(x: int) -> str:
                 return x * 2
         """,
     )
+    file_error = "UnmistakableFileError"
     testdir.makepyfile(
-        conftest="""
-            def custom_file_error_formatter(item, results, errors):
-                return '\\n'.join(
-                    '{path}:{error}'.format(
-                        path=item.fspath,
-                        error=error,
-                    )
-                    for error in errors
-                )
+        conftest=f"""
+            def custom_file_error_formatter(item, results, lines):
+                return '{file_error}'
 
             def pytest_configure(config):
                 plugin = config.pluginmanager.getplugin('mypy')
@@ -424,7 +419,7 @@ def test_api_error_formatter(testdir, xdist_args):
         """,
     )
     result = testdir.runpytest_subprocess("--mypy", *xdist_args)
-    result.stdout.fnmatch_lines(["*/bad.py:2: error: Incompatible return value*"])
+    result.stdout.fnmatch_lines([f"*{file_error}*"])
     assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
@@ -671,3 +666,29 @@ def test_mypy_xfail_reports_stdout(testdir, xdist_args):
 def test_error_severity():
     """Verify that non-error lines produce no severity."""
     assert pytest_mypy._error_severity("arbitrary line with no error") is None
+
+
+def test_mypy_report_style(testdir, xdist_args):
+    """Verify that --mypy-report-style functions correctly."""
+    module_name = "unmistakable_module_name"
+    testdir.makepyfile(
+        **{
+            module_name: """
+            def pyfunc(x: int) -> str:
+                return x * 2
+        """
+        },
+    )
+    result = testdir.runpytest_subprocess("--mypy-report-style", "no-path", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(failed=mypy_checks)
+    result.stdout.fnmatch_lines(["2: error: Incompatible return value*"])
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    result = testdir.runpytest_subprocess("--mypy-report-style", "mypy", *xdist_args)
+    result.assert_outcomes(failed=mypy_checks)
+    result.stdout.fnmatch_lines(
+        [f"{module_name}.py:2: error: Incompatible return value*"]
+    )
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
