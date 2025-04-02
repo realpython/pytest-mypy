@@ -138,7 +138,34 @@ def test_mypy_error(testdir, xdist_args):
     assert result.ret == pytest.ExitCode.TESTS_FAILED
 
 
-def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path, monkeypatch):
+def test_mypy_path_error(testdir, xdist_args):
+    """Verify that runs are not affected by path errors."""
+    testdir.makepyfile(
+        conftest="""
+            def pytest_configure(config):
+                plugin = config.pluginmanager.getplugin('mypy')
+
+                class FakePath:
+                    def __init__(self, _):
+                        pass
+                    def resolve(self):
+                        raise OSError
+
+                Path = plugin.Path
+                plugin.Path = FakePath
+                plugin.MypyResults.from_mypy([], opts=['--version'])
+                plugin.Path = Path
+        """,
+    )
+    result = testdir.runpytest_subprocess("--mypy", *xdist_args)
+    mypy_file_checks = 1
+    mypy_status_check = 1
+    mypy_checks = mypy_file_checks + mypy_status_check
+    result.assert_outcomes(passed=mypy_checks)
+    assert result.ret == pytest.ExitCode.OK
+
+
+def test_mypy_annotation_unchecked(testdir, xdist_args, tmp_path):
     """Verify that annotation-unchecked warnings do not manifest as an error."""
     testdir.makepyfile(
         """

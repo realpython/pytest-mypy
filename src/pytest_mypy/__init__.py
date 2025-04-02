@@ -360,7 +360,10 @@ class MypyResults:
         for line in stdout.split("\n"):
             if not line:
                 continue
-            path = Path(line.partition(":")[0]).resolve()
+            try:
+                path = Path(line.partition(":")[0]).resolve()
+            except OSError:
+                path = None
             try:
                 lines = path_lines[path]
             except KeyError:
