@@ -1,7 +1,7 @@
 name: Validation
 on: [push, pull_request]
 jobs:
-  build:
+  tox:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
