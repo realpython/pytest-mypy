@@ -8,7 +8,6 @@ import pytest
 
 import pytest_mypy
 
-
 MYPY_VERSION = Version(mypy.version.__version__)
 PYTEST_VERSION = Version(pytest.__version__)
 PYTHON_VERSION = Version(
@@ -699,12 +698,10 @@ def test_mypy_report_style(testdir, xdist_args):
     """Verify that --mypy-report-style functions correctly."""
     module_name = "unmistakable_module_name"
     testdir.makepyfile(
-        **{
-            module_name: """
+        **{module_name: """
             def pyfunc(x: int) -> str:
                 return x * 2
-        """
-        },
+        """},
     )
     result = testdir.runpytest_subprocess("--mypy-report-style", "no-path", *xdist_args)
     mypy_file_checks = 1
