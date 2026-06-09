@@ -8,7 +8,6 @@ import pytest
 
 import pytest_mypy
 
-
 MYPY_VERSION = Version(mypy.version.__version__)
 PYTEST_VERSION = Version(pytest.__version__)
 PYTHON_VERSION = Version(
@@ -82,6 +81,12 @@ def test_mypy_encoding_warnings(testdir, monkeypatch):
     mypy_status_check = 1
     mypy_checks = mypy_file_checks + mypy_status_check
     expected_warnings = 2  # https://github.com/python/mypy/issues/14603
+    if MYPY_VERSION < Version("1.5"):
+        # DeprecationWarning: mypy_extensions.TypedDict is deprecated,
+        # and will be removed in a future version.
+        # Use typing.TypedDict or typing_extensions.TypedDict instead.
+        # https://github.com/python/mypy/pull/15494
+        expected_warnings += 1
     result.assert_outcomes(passed=mypy_checks, warnings=expected_warnings)
 
 
@@ -699,12 +704,10 @@ def test_mypy_report_style(testdir, xdist_args):
     """Verify that --mypy-report-style functions correctly."""
     module_name = "unmistakable_module_name"
     testdir.makepyfile(
-        **{
-            module_name: """
+        **{module_name: """
             def pyfunc(x: int) -> str:
                 return x * 2
-        """
-        },
+        """},
     )
     result = testdir.runpytest_subprocess("--mypy-report-style", "no-path", *xdist_args)
     mypy_file_checks = 1
