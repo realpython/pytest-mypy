@@ -118,18 +118,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def _xdist_worker(config: pytest.Config) -> Dict[str, Any]:
     try:
-        return {"input": _xdist_workerinput(config)}
+        # xdist.remote defines the workerinput attribute in worker processes.
+        return {"input": config.workerinput}  # type: ignore[attr-defined]
     except AttributeError:
         return {}
-
-
-def _xdist_workerinput(node: Union[WorkerController, pytest.Config]) -> Any:
-    try:
-        # mypy complains that pytest.Config does not have this attribute,
-        # but xdist.remote defines it in worker processes.
-        return node.workerinput  # type: ignore[union-attr]
-    except AttributeError:  # compat xdist < 2.0
-        return node.slaveinput  # type: ignore[union-attr]
 
 
 class MypyXdistControllerPlugin:
@@ -137,7 +129,7 @@ class MypyXdistControllerPlugin:
 
     def pytest_configure_node(self, node: WorkerController) -> None:
         """Pass the config stash to workers."""
-        _xdist_workerinput(node)["mypy_config_stash_serialized"] = node.config.stash[
+        node.workerinput["mypy_config_stash_serialized"] = node.config.stash[
             stash_key["config"]
         ].serialized()
 
