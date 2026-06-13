@@ -65,10 +65,6 @@ def test_mypy_success(testdir, pyfile_count, xdist_args):
     reason="https://github.com/pytest-dev/pytest/pull/10935",
 )
 @pytest.mark.skipif(
-    PYTHON_VERSION < Version("3.10"),
-    reason="PEP 597 was added in Python 3.10.",
-)
-@pytest.mark.skipif(
     PYTHON_VERSION >= Version("3.12") and MYPY_VERSION < Version("1.5"),
     reason="https://github.com/python/mypy/pull/15558",
 )
