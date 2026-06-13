@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0", "setuptools-scm >= 7.1"]
+requires = ["setuptools >= 80", "setuptools-scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -27,11 +27,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Software Development :: Testing",
 ]
-requires-python = ">=3.10"
+requires-python = ">= 3.10"
 dependencies = [
-    "filelock>=3.0",
-    "mypy>=1.0",
-    "pytest>=7.0",
+    "filelock >= 3.0",
+    "mypy >= 1.0",
+    "pytest >= 7.0",
 ]
 
 [project.entry-points.pytest11]
