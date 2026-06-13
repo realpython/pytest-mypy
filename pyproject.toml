@@ -27,11 +27,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Software Development :: Testing",
 ]
-requires-python = ">=3.10"
+requires-python = ">= 3.10"
 dependencies = [
-    "filelock>=3.0",
-    "mypy>=1.0",
-    "pytest>=7.0",
+    "filelock >= 3.0",
+    "mypy >= 1.0",
+    "pytest >= 7.0",
 ]
 
 [project.entry-points.pytest11]
