@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import json
+import typing
 from collections.abc import Iterator
 from dataclasses import dataclass
-import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-import typing
 
-from filelock import FileLock
 import mypy.api
 import pytest
+from filelock import FileLock
 
 if typing.TYPE_CHECKING:  # pragma: no cover
 
