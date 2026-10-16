@@ -83,6 +83,9 @@ def test_mypy_encoding_warnings(testdir, monkeypatch):
         # Use typing.TypedDict or typing_extensions.TypedDict instead.
         # https://github.com/python/mypy/pull/15494
         expected_warnings += 1
+    elif MYPY_VERSION >= Version("2.4"):
+        # https://github.com/python/mypy/pull/21823
+        expected_warnings -= 1
     result.assert_outcomes(passed=mypy_checks, warnings=expected_warnings)
 
 
