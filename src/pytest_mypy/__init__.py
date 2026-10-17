@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -13,16 +14,6 @@ import mypy.api
 import pytest
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Any,
-        Dict,
-        IO,
-        Iterator,
-        List,
-        Optional,
-        Tuple,
-        Union,
-    )
 
     # https://github.com/pytest-dev/pytest/issues/7469
     from _pytest._code.code import TerminalRepr
@@ -49,7 +40,7 @@ class MypyConfigStash:
 
 
 item_marker = "mypy"
-mypy_argv: List[str] = []
+mypy_argv: list[str] = []
 nodeid_name = "mypy"
 stash_key = {
     "config": pytest.StashKey[MypyConfigStash](),
@@ -68,7 +59,7 @@ test_name_formatter = default_test_name_formatter
 def default_file_error_formatter(
     item: MypyItem,
     results: MypyResults,
-    lines: List[str],
+    lines: list[str],
 ) -> str:
     """Create a string to be displayed when mypy finds errors in a file."""
     if item.config.option.mypy_report_style == "mypy":
@@ -116,7 +107,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-def _xdist_worker(config: pytest.Config) -> Dict[str, Any]:
+def _xdist_worker(config: pytest.Config) -> dict[str, typing.Any]:
     try:
         # xdist.remote defines the workerinput attribute in worker processes.
         return {"input": config.workerinput}  # type: ignore[attr-defined]
@@ -195,7 +186,7 @@ class MypyCollectionPlugin:
         self,
         file_path: Path,
         parent: pytest.Collector,
-    ) -> Optional[MypyFile]:
+    ) -> MypyFile | None:
         """Create a MypyFileItem for every file mypy should run on."""
         if file_path.suffix in {".py", ".pyi"}:
             # Do not create MypyFile instance for a .py file if a
@@ -230,15 +221,15 @@ class MypyFile(pytest.File):
 class MypyItem(pytest.Item):
     """A Mypy-related test Item."""
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: typing.Any, **kwargs: typing.Any):
         super().__init__(*args, **kwargs)
         self.add_marker(item_marker)
 
     def repr_failure(
         self,
         excinfo: pytest.ExceptionInfo[BaseException],
-        style: Optional[str] = None,
-    ) -> Union[str, TerminalRepr]:
+        style: str | None = None,
+    ) -> str | TerminalRepr:
         """
         Unwrap mypy errors so we get a clean error message without the
         full exception repr.
@@ -248,7 +239,7 @@ class MypyItem(pytest.Item):
         return super().repr_failure(excinfo)
 
 
-def _error_severity(line: str) -> Optional[str]:
+def _error_severity(line: str) -> str | None:
     components = [component.strip() for component in line.split(":", 3)]
     if len(components) < 2:
         return None
@@ -275,7 +266,7 @@ class MypyFileItem(MypyItem):
                 )
             raise MypyError(file_error_formatter(self, results, lines))
 
-    def reportinfo(self) -> Tuple[Path, None, str]:
+    def reportinfo(self) -> tuple[Path, None, str]:
         """Produce a heading for the test report."""
         return (self.path, None, test_name_formatter(item=self))
 
@@ -305,14 +296,14 @@ class MypyResults:
 
     _encoding = "utf-8"
 
-    opts: List[str]
-    args: List[str]
+    opts: list[str]
+    args: list[str]
     stdout: str
     stderr: str
     status: int
-    path_lines: Dict[Optional[Path], List[str]]
+    path_lines: dict[Path | None, list[str]]
 
-    def dump(self, results_f: IO[bytes]) -> None:
+    def dump(self, results_f: typing.IO[bytes]) -> None:
         """Cache results in a format that can be parsed by load()."""
         prepared = vars(self).copy()
         prepared["path_lines"] = {
@@ -321,7 +312,7 @@ class MypyResults:
         results_f.write(json.dumps(prepared).encode(self._encoding))
 
     @classmethod
-    def load(cls, results_f: IO[bytes]) -> MypyResults:
+    def load(cls, results_f: typing.IO[bytes]) -> MypyResults:
         """Get results cached by dump()."""
         prepared = json.loads(results_f.read().decode(cls._encoding))
         prepared["path_lines"] = {
@@ -333,9 +324,9 @@ class MypyResults:
     @classmethod
     def from_mypy(
         cls,
-        paths: List[Path],
+        paths: list[Path],
         *,
-        opts: Optional[List[str]] = None,
+        opts: list[str] | None = None,
     ) -> MypyResults:
         """Generate results from mypy."""
 
@@ -345,7 +336,7 @@ class MypyResults:
 
         stdout, stderr, status = mypy.api.run(opts + args)
 
-        path_lines: Dict[Optional[Path], List[str]] = {
+        path_lines: dict[Path | None, list[str]] = {
             path.resolve(): [] for path in paths
         }
         path_lines[None] = []
