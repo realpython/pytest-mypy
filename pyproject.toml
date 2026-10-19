@@ -40,4 +40,7 @@ mypy = "pytest_mypy"
 [project.urls]
 homepage = "https://github.com/realpython/pytest-mypy"
 
+[tool.isort]
+profile = "black"
+
 [tool.setuptools_scm]

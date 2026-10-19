@@ -3,8 +3,8 @@ import sys
 import textwrap
 
 import mypy.version
-from packaging.version import Version
 import pytest
+from packaging.version import Version
 
 import pytest_mypy
 
