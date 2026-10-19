@@ -83,6 +83,10 @@ def test_mypy_encoding_warnings(testdir, monkeypatch):
         # Use typing.TypedDict or typing_extensions.TypedDict instead.
         # https://github.com/python/mypy/pull/15494
         expected_warnings += 1
+    elif MYPY_VERSION < Version("2.3") and PYTHON_VERSION >= Version("3.15"):
+        # Mypy 2.3 added compiled .so modules for mypy.modulefinder and mypy.build.
+        # https://github.com/python/mypy/pull/21255
+        expected_warnings += 1
     elif MYPY_VERSION >= Version("2.4"):
         # https://github.com/python/mypy/pull/21823
         expected_warnings -= 1
